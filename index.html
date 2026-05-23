@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tetris Bot</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="board-wrap" aria-label="Tetris board">
+        <canvas id="board" width="300" height="600"></canvas>
+      </section>
+      <aside class="panel">
+        <h1>Tetris Bot</h1>
+        <div class="stats">
+          <div><span>Score</span><strong id="score">0</strong></div>
+          <div><span>Lines</span><strong id="lines">0</strong></div>
+          <div><span>Level</span><strong id="level">1</strong></div>
+          <div><span>Mode</span><strong id="mode">BOT</strong></div>
+        </div>
+        <div class="preview">
+          <span>Next</span>
+          <canvas id="next" width="96" height="96"></canvas>
+        </div>
+        <div class="controls">
+          <button id="toggleBot" type="button">Bot</button>
+          <button id="toggleSpeed" type="button">Normal</button>
+          <button id="restart" type="button">Restart</button>
+        </div>
+        <p class="keys">B bot | F speed | R restart | arrows move | Space drop</p>
+      </aside>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
