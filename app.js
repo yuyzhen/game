@@ -164,9 +164,8 @@ function scoreBoard(board, lines) {
   return lines * 4.6 - h.reduce((a, b) => a + b, 0) * 0.51 - holes(board) * 3.2 - bumpiness(h) * 0.42 + wells(h) * 0.18;
 }
 
-function bestMove(board, piece) {
-  let best = null;
-  let bestScore = -Infinity;
+function placements(board, piece) {
+  const result = [];
   rotations(SHAPES[piece.kind]).forEach((matrix, rotationIndex) => {
     for (let x = -2; x <= COLS - matrix[0].length + 2; x += 1) {
       const testPiece = { kind: piece.kind, matrix: clone(matrix), x, y: 0 };
@@ -175,11 +174,28 @@ function bestMove(board, piece) {
       const testBoard = clone(board);
       merge(testBoard, testPiece);
       const lines = clearLines(testBoard);
-      const score = scoreBoard(testBoard, lines);
-      if (score > bestScore) {
-        bestScore = score;
-        best = { rotationIndex, x };
-      }
+      result.push({ rotationIndex, x, board: testBoard, lines });
+    }
+  });
+  return result;
+}
+
+function bestMove(board, piece, nextKind) {
+  let best = null;
+  let bestScore = -Infinity;
+  placements(board, piece).forEach((move) => {
+    let score = scoreBoard(move.board, move.lines);
+    if (nextKind) {
+      const nextPiece = newPiece(nextKind);
+      const nextPlacements = placements(move.board, nextPiece);
+      const nextScore = nextPlacements.length
+        ? Math.max(...nextPlacements.map((nextMove) => scoreBoard(nextMove.board, nextMove.lines)))
+        : -10000;
+      score += nextScore * 0.72;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = { rotationIndex: move.rotationIndex, x: move.x };
     }
   });
   return best || { rotationIndex: 0, x: piece.x };
@@ -265,7 +281,7 @@ function hardDrop() {
 }
 
 function botStep() {
-  if (!game.botTarget) game.botTarget = bestMove(game.board, game.current);
+  if (!game.botTarget) game.botTarget = bestMove(game.board, game.current, game.nextKind);
   const rotationIndex = rotations(SHAPES[game.current.kind]).findIndex((item) => JSON.stringify(item) === JSON.stringify(game.current.matrix));
   if (rotationIndex !== game.botTarget.rotationIndex) rotateCurrent();
   else if (game.current.x < game.botTarget.x) move(1);
