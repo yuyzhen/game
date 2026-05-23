@@ -2,10 +2,18 @@
 
 A small pygame Tetris implementation with a built-in heuristic bot.
 
-## Run
+## Run the desktop version
 
 ```powershell
 python tetris_bot.py
+```
+
+## Run the web version
+
+Open `index.html` in a browser, or serve the folder:
+
+```powershell
+python -m http.server 8000
 ```
 
 ## Controls
