@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>傅里叶级数 · 动画对比</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #0d0d1a;
+    color: #e0e0e0;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  #header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 28px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
+    background: rgba(13,13,26,0.9);
+    backdrop-filter: blur(8px);
+    z-index: 10;
+  }
+  #header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+  #header h1 span { color: #818cf8; }
+  #header .sub { font-size: 12px; color: rgba(255,255,255,0.4); margin-left: 10px; }
+  #controls {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+  #controls label { font-size: 12px; color: rgba(255,255,255,0.6); display: flex; align-items: center; gap: 8px; }
+  #controls input[type="range"] {
+    -webkit-appearance: none;
+    width: 120px;
+    height: 3px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    outline: none;
+  }
+  #controls input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #818cf8;
+    cursor: pointer;
+    border: 2px solid #0d0d1a;
+  }
+  #controls .val { font-size: 13px; font-weight: 700; color: #818cf8; min-width: 28px; text-align: center; }
+  #container {
+    flex: 1;
+    display: flex;
+    gap: 0;
+    overflow: hidden;
+  }
+  .panel {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .panel-header {
+    text-align: center;
+    padding: 8px 0 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.3);
+    flex-shrink: 0;
+  }
+  .panel-body {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
+  .panel canvas, .panel-body canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  .divider {
+    width: 1px;
+    background: rgba(255,255,255,0.08);
+    flex-shrink: 0;
+  }
+  .badge {
+    position: absolute;
+    bottom: 16px;
+    right: 20px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.2);
+    font-family: monospace;
+  }
+  .legend {
+    position: absolute;
+    bottom: 16px;
+    left: 20px;
+    display: flex;
+    gap: 14px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.25);
+  }
+  .legend-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  @media (max-width: 700px) {
+    #header { flex-direction: column; gap: 8px; padding: 10px 16px; }
+    #controls { width: 100%; justify-content: center; }
+    #container { flex-direction: column; }
+    .divider { width: 100%; height: 1px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>◈ <span>傅里叶</span>级数 <span class="sub">Fourier Series</span></h1>
+  </div>
+  <div id="controls">
+    <label>谐波数 <input type="range" id="harmSlider" min="1" max="100" value="25"> <span class="val" id="harmVal">25</span></label>
+    <label>速度 <input type="range" id="speedSlider" min="1" max="10" value="3"> <span class="val" id="speedVal">3</span></label>
+  </div>
+</div>
+
+<div id="container">
+  <div class="panel">
+    <div class="panel-header">Canvas 2D</div>
+    <div class="panel-body">
+      <canvas id="canvasLeft"></canvas>
+      <div class="badge">CPU</div>
+      <div class="legend"><span><span class="legend-dot" style="background:#818cf8;"></span>谐波圆</span><span><span class="legend-dot" style="background:#fbbf24;"></span>绘制路径</span></div>
+    </div>
+  </div>
+  <div class="divider"></div>
+  <div class="panel">
+    <div class="panel-header">PixiJS (WebGL)</div>
+    <div class="panel-body" id="pixiPanel">
+      <div class="badge">GPU</div>
+      <div class="legend"><span><span class="legend-dot" style="background:#818cf8;"></span>谐波圆</span><span><span class="legend-dot" style="background:#fbbf24;"></span>绘制路径</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ================================================================
+  //  DOM refs & state
+  // ================================================================
+  const canvasL = document.getElementById('canvasLeft');
+  const ctx = canvasL.getContext('2d');
+  const harmSlider = document.getElementById('harmSlider');
+  const harmVal = document.getElementById('harmVal');
+  const speedSlider = document.getElementById('speedSlider');
+  const speedVal = document.getElementById('speedVal');
+
+  let W, H, cw, ch;
+  let pixiApp = null, pixiGfx = null, pixiTrace = null;
+  let fourier = []; // [{real, imag, freq, amp, phase}]
+  let time = 0;
+  let drawPhase = true; // whether we're drawing (else just epicycles)
+  const traceLen = 600;
+  let traceA = []; // canvas trace
+  let traceB = []; // pixi trace
+
+  // ================================================================
+  //  Shape generation — 5-pointed star
+  // ================================================================
+  const SAMPLES = 256;
+  const STAR_OUTER = 120;
+  const STAR_INNER = 50;
+  let ghostPath = [];
+
+  function starPath(n, outer, inner) {
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const r = i % 2 === 0 ? outer : inner;
+      pts.push({ x: r * Math.cos(a), y: r * Math.sin(a) });
+    }
+    return pts;
+  }
+
+  function drawGhostShape(ctxOrGfx, cx, cy, scale, isPixi) {
+    const pts = ghostPath;
+    if (pts.length < 2) return;
+    if (isPixi) {
+      ctxOrGfx.lineStyle({ width: 1, color: 0xffffff, alpha: 0.06 });
+      ctxOrGfx.moveTo(cx + pts[0].x * scale, cy + pts[0].y * scale);
+      for (let i = 1; i < pts.length; i++) {
+        ctxOrGfx.lineTo(cx + pts[i].x * scale, cy + pts[i].y * scale);
+      }
+      ctxOrGfx.closePath();
+      ctxOrGfx.stroke();
+    } else {
+      ctxOrGfx.save();
+      ctxOrGfx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctxOrGfx.lineWidth = 1;
+      ctxOrGfx.setLineDash([4, 6]);
+      ctxOrGfx.beginPath();
+      ctxOrGfx.moveTo(pts[0].x * scale, pts[0].y * scale);
+      for (let i = 1; i < pts.length; i++) {
+        ctxOrGfx.lineTo(pts[i].x * scale, pts[i].y * scale);
+      }
+      ctxOrGfx.closePath();
+      ctxOrGfx.stroke();
+      ctxOrGfx.setLineDash([]);
+      ctxOrGfx.restore();
+    }
+  }
+
+  // ================================================================
+  //  DFT
+  // ================================================================
+  function computeDFT(points) {
+    const N = points.length;
+    const coeffs = [];
+    for (let k = 0; k < N; k++) {
+      let real = 0, imag = 0;
+      for (let n = 0; n < N; n++) {
+        const phi = (2 * Math.PI * k * n) / N;
+        real += points[n].x * Math.cos(phi) + points[n].y * Math.sin(phi);
+        imag += -points[n].x * Math.sin(phi) + points[n].y * Math.cos(phi);
+      }
+      real /= N;
+      imag /= N;
+      const amp = Math.sqrt(real * real + imag * imag);
+      const phase = Math.atan2(imag, real);
+      coeffs.push({ real, imag, freq: k, amp, phase });
+    }
+    // Sort by amplitude descending (DC first, then largest oscillations)
+    return coeffs.sort((a, b) => b.amp - a.amp);
+  }
+
+  // ================================================================
+  //  Epicycle computation
+  // ================================================================
+  function epicyclePoint(t, coeffs, maxN) {
+    const n = Math.min(maxN, coeffs.length);
+    let x = 0, y = 0;
+    const circles = [];
+    for (let i = 0; i < n; i++) {
+      const c = coeffs[i];
+      const angle = 2 * Math.PI * c.freq * t + c.phase;
+      const dx = c.amp * Math.cos(angle);
+      const dy = c.amp * Math.sin(angle);
+      circles.push({ x, y, r: Math.abs(c.amp), endX: x + dx, endY: y + dy, angle });
+      x += dx;
+      y += dy;
+    }
+    return { x, y, circles };
+  }
+
+  // ================================================================
+  //  Resize & init
+  // ================================================================
+  function resize() {
+    const leftPanel = canvasL.parentElement;
+    const rect = leftPanel.getBoundingClientRect();
+    W = rect.width;
+    H = rect.height;
+    canvasL.width = W * devicePixelRatio;
+    canvasL.height = H * devicePixelRatio;
+    canvasL.style.width = W + 'px';
+    canvasL.style.height = H + 'px';
+    cw = canvasL.width;
+    ch = canvasL.height;
+  }
+
+  function init() {
+    ghostPath = starPath(SAMPLES, STAR_OUTER, STAR_INNER);
+    fourier = computeDFT(ghostPath);
+    traceA = [];
+    traceB = [];
+    resize();
+    initPixi();
+    draw();
+  }
+
+  // ================================================================
+  //  PixiJS init
+  // ================================================================
+  function initPixi() {
+    const container = document.getElementById('pixiPanel');
+    if (pixiApp) {
+      pixiApp.destroy(true, { children: true });
+      pixiApp = null;
+    }
+    const rect = container.getBoundingClientRect();
+    const pw = rect.width;
+    const ph = rect.height;
+
+    pixiApp = new PIXI.Application({
+      width: pw,
+      height: ph,
+      backgroundColor: 0x0d0d1a,
+      antialias: true,
+      resolution: devicePixelRatio || 1,
+      autoDensity: true,
+    });
+    container.appendChild(pixiApp.view);
+    pixiApp.view.style.width = pw + 'px';
+    pixiApp.view.style.height = ph + 'px';
+
+    pixiGfx = new PIXI.Graphics();
+    pixiTrace = new PIXI.Graphics();
+    pixiApp.stage.addChild(pixiGfx);
+    pixiApp.stage.addChild(pixiTrace);
+  }
+
+  // ================================================================
+  //  Canvas render
+  // ================================================================
+  function drawCanvas(epiResult, allTrace) {
+    const cx2 = cw / 2;
+    const cy2 = ch / 2;
+    const s = 1.1;
+
+    ctx.clearRect(0, 0, cw, ch);
+
+    // Background grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1;
+    for (let x = cx2 % 40; x < cw; x += 40) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ch); ctx.stroke();
+    }
+    for (let y = cy2 % 40; y < ch; y += 40) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke();
+    }
+
+    ctx.save();
+    ctx.translate(cx2, cy2);
+    ctx.scale(s, s);
+
+    // Ghost target shape
+    drawGhostShape(ctx, 0, 0, 1, false);
+
+    // Draw epicycles
+    const circles = epiResult.circles;
+    for (let i = 0; i < circles.length; i++) {
+      const c = circles[i];
+      const alpha = 0.25 + 0.75 * (1 - i / circles.length);
+
+      // Circle
+      ctx.strokeStyle = `rgba(129,140,248,${alpha * 0.3})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, Math.abs(c.r), 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Arm from center to circumference
+      ctx.strokeStyle = `rgba(255,255,255,${alpha * 0.15})`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(c.x, c.y);
+      ctx.lineTo(c.endX, c.endY);
+      ctx.stroke();
+    }
+
+    // Dot at current epicycle end
+    const { x: ex, y: ey } = epiResult;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(ex, ey, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(129,140,248,0.4)';
+    ctx.beginPath();
+    ctx.arc(ex, ey, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Trace path
+    if (allTrace.length > 1) {
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = 'rgba(251,191,36,0.3)';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(allTrace[0].x, allTrace[0].y);
+      for (let i = 1; i < allTrace.length; i++) {
+        ctx.lineTo(allTrace[i].x, allTrace[i].y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Glow at trace head
+      const last = allTrace[allTrace.length - 1];
+      ctx.fillStyle = 'rgba(251,191,36,0.3)';
+      ctx.beginPath();
+      ctx.arc(last.x, last.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  // ================================================================
+  //  PixiJS render
+  // ================================================================
+  function drawPixi(epiResult, allTrace) {
+    if (!pixiGfx || !pixiTrace) return;
+    const rect = document.getElementById('pixiPanel').getBoundingClientRect();
+    const cx2 = rect.width / 2;
+    const cy2 = rect.height / 2;
+    const s = 1.1;
+
+    pixiGfx.clear();
+    pixiTrace.clear();
+
+    // Ghost target shape
+    drawGhostShape(pixiGfx, cx2, cy2, s, true);
+
+    const circles = epiResult.circles;
+
+    // Epicycles
+    for (let i = 0; i < circles.length; i++) {
+      const c = circles[i];
+      const alpha = 0.25 + 0.75 * (1 - i / circles.length);
+
+      // Circle
+      pixiGfx.lineStyle({ width: 1, color: 0x818cf8, alpha: alpha * 0.3 });
+      pixiGfx.drawCircle(cx2 + c.x * s, cy2 + c.y * s, Math.abs(c.r * s));
+
+      // Arm
+      if (i > 0) {
+        pixiGfx.lineStyle({ width: 0.8, color: 0xffffff, alpha: alpha * 0.12 });
+        pixiGfx.moveTo(cx2 + c.x * s, cy2 + c.y * s);
+        pixiGfx.lineTo(cx2 + c.endX * s, cy2 + c.endY * s);
+      }
+    }
+
+    // Current point
+    const { x: ex, y: ey } = epiResult;
+    pixiGfx.lineStyle({ width: 0 });
+    pixiGfx.beginFill(0xffffff, 0.9);
+    pixiGfx.drawCircle(cx2 + ex * s, cy2 + ey * s, 3);
+    pixiGfx.endFill();
+
+    // Trace
+    if (allTrace.length > 1) {
+      pixiTrace.lineStyle({ width: 2, color: 0xfbbf24, alpha: 0.9 });
+      pixiTrace.moveTo(cx2 + allTrace[0].x * s, cy2 + allTrace[0].y * s);
+      for (let i = 1; i < allTrace.length; i++) {
+        pixiTrace.lineTo(cx2 + allTrace[i].x * s, cy2 + allTrace[i].y * s);
+      }
+
+      // Glow at trace head
+      const last = allTrace[allTrace.length - 1];
+      pixiTrace.beginFill(0xfbbf24, 0.2);
+      pixiTrace.drawCircle(cx2 + last.x * s, cy2 + last.y * s, 4);
+      pixiTrace.endFill();
+    }
+  }
+
+  // ================================================================
+  //  Main loop
+  // ================================================================
+  let animId = null;
+
+  function draw() {
+    const harmCount = parseInt(harmSlider.value);
+    const speed = parseInt(speedSlider.value);
+
+    time += 0.004 * speed;
+    if (time > 1) { time -= 1; }
+
+    const epi = epicyclePoint(time, fourier, harmCount);
+
+    // Store trace
+    traceA.push({ x: epi.x, y: epi.y });
+    if (traceA.length > traceLen) traceA.shift();
+    traceB.push({ x: epi.x, y: epi.y });
+    if (traceB.length > traceLen) traceB.shift();
+
+    drawCanvas(epi, traceA);
+    drawPixi(epi, traceB);
+
+    animId = requestAnimationFrame(draw);
+  }
+
+  // ================================================================
+  //  Controls
+  // ================================================================
+  harmSlider.addEventListener('input', () => {
+    harmVal.textContent = harmSlider.value;
+  });
+  speedSlider.addEventListener('input', () => {
+    speedVal.textContent = speedSlider.value;
+  });
+
+  // ================================================================
+  //  Resize handling
+  // ================================================================
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      resize();
+      initPixi();
+    }, 200);
+  });
+
+  // ================================================================
+  //  Start
+  // ================================================================
+  init();
+</script>
+</body>
+</html>
