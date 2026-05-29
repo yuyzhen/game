@@ -9,7 +9,7 @@
 | # | 项目 | 文件 | 技术栈 | 类型 |
 |---|------|------|--------|------|
 | 1 | 🐍 **贪吃蛇** (Snake) | `index.html` / `snake.html` / `snake2.html` | Canvas 2D | 游戏 |
-| 2 | 🧩 **俄罗斯方块** (Tetris) | `app.js` + `styles.css` / `tetris_bot.py` | Canvas 2D / Pygame | 游戏 |
+| 2 | 🧩 **俄罗斯方块** (Tetris) | `tetris.html` / `app.js` + `styles.css` / `tetris_bot.py` | Canvas 2D / Pygame | 游戏 |
 | 3 | 🏎️ **F1 像素赛车** | `f1-racing.html` | Canvas 2D (伪3D) | 游戏 |
 | 4 | 🏠 **小屋建造动画** | `cabin.html` / `cabin-pixi.html` | Canvas 2D / PixiJS | 动画 |
 | 5 | 📐 **傅里叶级数** | `fourier.html` | Canvas 2D + PixiJS | 可视化 |
@@ -68,6 +68,7 @@ python tetris_bot.py
 ### 文件
 | 版本 | 文件 | 特点 |
 |------|------|------|
+| 单页版 | `tetris.html` | 自包含 HTML, 可直接在浏览器打开 |
 | 网页版 | `app.js` + `styles.css` | 7 种方块, 旋转, Ghost piece, Bot 自动落子, 暗色主题 |
 | Python 版 | `tetris_bot.py` | Game 类封装, 完整 Bot, Pygame 渲染 |
 
