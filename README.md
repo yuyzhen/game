@@ -9,7 +9,7 @@
 | # | 项目 | 文件 | 技术栈 | 类型 |
 |---|------|------|--------|------|
 | 1 | 🐍 **贪吃蛇** (Snake) | `index.html` / `snake.html` / `snake2.html` | Canvas 2D | 游戏 |
-| 2 | 🧩 **俄罗斯方块** (Tetris) | `tetris.html` / `tetris_bot.py` | Canvas 2D / Pygame | 游戏 |
+| 2 | 🧩 **俄罗斯方块** (Tetris) | `tetris.html` | Canvas 2D | 游戏 |
 | 3 | 🏎️ **F1 像素赛车** | `f1-racing.html` | Canvas 2D (伪3D) | 游戏 |
 | 4 | 🏠 **小屋建造动画** | `cabin.html` / `cabin-pixi.html` | Canvas 2D / PixiJS | 动画 |
 | 5 | 📐 **傅里叶级数** | `fourier.html` | Canvas 2D + PixiJS | 可视化 |
@@ -30,13 +30,6 @@ python -m http.server 8000
 # 浏览器访问 http://localhost:8000
 ```
 
-### Python 项目
-
-```powershell
-# 俄罗斯方块
-pip install pygame
-python tetris_bot.py
-```
 
 ---
 
@@ -68,8 +61,7 @@ python tetris_bot.py
 ### 文件
 | 版本 | 文件 | 特点 |
 |------|------|------|
-| 单页版 | `tetris.html` | 自包含 HTML, 可直接在浏览器打开 |
-| Python 版 | `tetris_bot.py` | Game 类封装, 完整 Bot, Pygame 渲染 |
+| 单页版 | `tetris.html` | 自包含 HTML, 7 种方块, 旋转, Ghost piece, Bot 自动落子, 暗色主题 |
 
 ### Bot 启发式评分
 遍历所有合法摆放位置，选择最优评分：
@@ -207,7 +199,6 @@ Bot 还会前瞻 **下一个方块 (next piece)**，加权 0.72 纳入评分。
 |------|------|
 | **Canvas 2D** | 所有 Web 游戏和动画的渲染引擎 |
 | **PixiJS (WebGL)** | 傅里叶可视化 + 小屋动画 (GPU 加速对比) |
-| **Pygame** | Python 版俄罗斯方块 |
 | **Web Audio API** | F1 赛车的引擎声和音效 |
 | **CSS 变量** | 看板应用的主题切换系统 |
 | **localStorage** | 看板应用的数据持久化 |
