@@ -9,13 +9,15 @@
 | # | 项目 | 文件 | 技术栈 | 类型 |
 |---|------|------|--------|------|
 | — | 🎮 **游戏中心** (Game Hub) | `index.html` | — | 入口 |
+| 1 | 🐍 **贪吃蛇** (Snake) | `snake.html` / `snake2.html` | Canvas 2D | 游戏 |
 | 2 | 🧩 **俄罗斯方块** (Tetris) | `tetris.html` | Canvas 2D | 游戏 |
 | 3 | 🏎️ **F1 像素赛车** | `f1-racing.html` | Canvas 2D (伪3D) | 游戏 |
-| 4 | 🏠 **小屋建造动画** | `cabin.html` / `cabin-pixi.html` | Canvas 2D / PixiJS | 动画 |
-| 5 | 📐 **傅里叶级数** | `fourier.html` | Canvas 2D + PixiJS | 可视化 |
-| 6 | 📅 **日历应用** (Nexus) | `calendar.html` | 原生 JS + CSS | 工具 |
-| 7 | 📋 **看板应用** (TaskFlow Pro) | `kanban.html` | 原生 JS + CSS | 工具 |
-| 8 | 🔐 **登录页面** (Nexus) | `login.html` | 原生 JS + CSS | 页面 |
+| 4 | 💧 **水壶倒水** (Water Jug Solver) | `water-jug-solver.html` | Canvas 2D | 游戏 |
+| 5 | 🏠 **小屋建造动画** | `cabin.html` / `cabin-pixi.html` | Canvas 2D / PixiJS | 动画 |
+| 6 | 📐 **傅里叶级数** | `fourier.html` | Canvas 2D + PixiJS | 可视化 |
+| 7 | 📅 **日历应用** (Nexus) | `calendar.html` | 原生 JS + CSS | 工具 |
+| 8 | 📋 **看板应用** (TaskFlow Pro) | `kanban.html` | 原生 JS + CSS | 工具 |
+| 9 | 🔐 **登录页面** (Nexus) | `login.html` | 原生 JS + CSS | 页面 |
 
 ---
 
@@ -102,7 +104,28 @@ Bot 还会前瞻 **下一个方块 (next piece)**，加权 0.72 纳入评分。
 
 ---
 
-## 🏠 4. 小屋建造动画
+## 💧 4. 水壶倒水 (Water Jug Solver)
+
+- **文件**：`water-jug-solver.html`
+- **画布**：全屏自适应
+
+### 游戏背景
+经典水壶倒水问题（148升挑战）：用 **89升** 和 **57升** 两个水壶，通过倒满、倒空、互相倒水等操作，最终量出 **148升** 水。
+
+### 核心特性
+- **BFS 算法**：广度优先搜索求解最短路径
+- **可视化搜索**：逐步展示每一步操作状态
+- **详细步骤**：显示每次倒水的操作说明和水量变化
+- **重置功能**：一键重新开始
+
+### 交互
+- `开始搜索` 启动 BFS 求解
+- `下一步` / `上一步` 逐步查看搜索过程
+- `重置` 清空状态重新开始
+
+---
+
+## 🏠 5. 小屋建造动画
 
 ### 文件
 | 版本 | 文件 | 特点 |
@@ -123,7 +146,7 @@ Bot 还会前瞻 **下一个方块 (next piece)**，加权 0.72 纳入评分。
 
 ---
 
-## 📐 5. 傅里叶级数可视化
+## 📐 6. 傅里叶级数可视化
 
 - **文件**：`fourier.html`
 - **技术**：Canvas 2D + PixiJS (WebGL) 双引擎并排对比
@@ -139,7 +162,7 @@ Bot 还会前瞻 **下一个方块 (next piece)**，加权 0.72 纳入评分。
 
 ---
 
-## 📅 6. 日历应用 (Nexus)
+## 📅 7. 日历应用 (Nexus)
 
 - **文件**：`calendar.html`
 - **品牌**：Nexus（与 login.html 统一风格）
@@ -154,7 +177,7 @@ Bot 还会前瞻 **下一个方块 (next piece)**，加权 0.72 纳入评分。
 
 ---
 
-## 📋 7. 看板应用 (TaskFlow Pro)
+## 📋 8. 看板应用 (TaskFlow Pro)
 
 - **文件**：`kanban.html`
 - **单页应用**，localStorage 持久化
@@ -175,7 +198,7 @@ Bot 还会前瞻 **下一个方块 (next piece)**，加权 0.72 纳入评分。
 
 ---
 
-## 🔐 8. 登录页面 (Nexus)
+## 🔐 9. 登录页面 (Nexus)
 
 - **文件**：`login.html`
 - **品牌**：Nexus（与日历应用统一风格）
