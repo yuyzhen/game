@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>F1 PIXEL RACING</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:#0a0a0a;overflow:hidden;font-family:"Courier New",monospace;image-rendering:pixelated;-webkit-font-smoothing:none}
+#wrapper{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+#gameCanvas{display:block;width:800px;height:600px;image-rendering:pixelated;image-rendering:crisp-edges;background:#000;box-shadow:0 0 60px rgba(255,40,40,0.15);cursor:none}
+.overlay{position:absolute;top:0;left:0;width:800px;height:600px;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;z-index:10;opacity:0;transition:opacity 0.3s}
+.overlay.active{opacity:1;pointer-events:auto}
+.overlay h1{font-size:48px;color:#ff3333;text-shadow:0 0 20px #ff333388,4px 4px 0 #000;letter-spacing:8px;margin-bottom:8px}
+.overlay h2{font-size:28px;color:#ffcc00;text-shadow:0 0 16px #ffcc0088,3px 3px 0 #000;letter-spacing:4px}
+.overlay p{font-size:18px;color:#ddd;text-shadow:2px 2px 0 #000;margin:6px 0;letter-spacing:2px}
+.overlay .key{display:inline-block;background:#222;border:2px solid #666;padding:2px 10px;font-size:14px;color:#ffcc00;margin:0 4px}
+.overlay .blink{animation:blink 0.8s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+#finish-screen .pos{font-size:72px;color:#ffcc00;text-shadow:0 0 30px #ffcc0066,4px 4px 0 #000}
+#finish-screen .pos-label{font-size:20px;color:#aaa}
+#finish-screen .stats{font-size:18px;color:#ccc;margin:4px 0}
+.countdown{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:120px;color:#ff3333;text-shadow:0 0 60px #ff333388,6px 6px 0 #000;z-index:15;pointer-events:none;font-family:"Courier New",monospace;opacity:0}
+@media(max-width:820px){#gameCanvas,.overlay{width:100vw;height:75vw;max-height:100vh}.overlay h1{font-size:5vw}.overlay h2{font-size:3.5vw}.overlay p{font-size:2.2vw}#finish-screen .pos{font-size:9vw}.countdown{font-size:15vw}}
+</style>
+</head>
+<body>
+<div id="wrapper">
+<canvas id="gameCanvas" width="320" height="240"></canvas>
+<div id="start-screen" class="overlay active">
+  <h1>F1 RACING</h1>
+  <p style="color:#888;font-size:14px;margin-bottom:16px">PIXEL EDITION</p>
+  <p><span class="key">↑</span>Accelerate <span class="key">↓</span>Brake</p>
+  <p><span class="key">←</span><span class="key">→</span>Steer <span class="key">SPACE</span>Boost</p>
+  <p><span class="key">P</span>Pause</p>
+  <p style="margin-top:20px;font-size:20px;color:#ffcc00" class="blink">PRESS SPACE TO START</p>
+</div>
+<div id="pause-screen" class="overlay">
+  <h2>PAUSED</h2>
+  <p style="margin-top:20px;font-size:20px;color:#ffcc00" class="blink">PRESS P TO RESUME</p>
+</div>
+<div id="finish-screen" class="overlay">
+  <h1>FINISH!</h1>
+  <div class="pos" id="final-pos">1st</div>
+  <div class="pos-label">FINAL POSITION</div>
+  <p class="stats" id="final-time">Time: 0:00.00</p>
+  <p class="stats" id="final-best">Best Lap: 0:00.00</p>
+  <p class="stats" id="final-speed">Top Speed: 0 km/h</p>
+  <p style="margin-top:20px;font-size:20px;color:#ffcc00" class="blink">PRESS SPACE TO RESTART</p>
+</div>
+<div id="countdown" class="countdown"></div>
+</div>
+<script>
+
+// ============================================================
+//  F1 PIXEL RACING — Complete Game Engine
+// ============================================================
+
+const CFG = {
+  W:320, H:240, SEGMENTS:600, SEG_LEN:12, FOCAL:85,
+  HORIZON:76, CAM_H:220, ROAD_HALF:100, RUMBLE:14,
+  DRAW_DIST:300, MAX_SPEED:340, ACCEL:140, BRAKE:220,
+  FRICTION:0.994, STEER_SPEED:3.2, CENTER_DAMP:0.94,
+  BOOST_MAX:100, BOOST_DRAIN:22, BOOST_REGEN:5, BOOST_SPEED:70,
+  AI_COUNT:5, TOTAL_LAPS:3, COLLISION_RANGE:14,
+  CAR_WIDTH:18, CAR_LENGTH:10, DRAFT_RANGE:20, DRAFT_BONUS:25
+};
+
+const canvas=document.getElementById("gameCanvas");
+const ctx=canvas.getContext("2d");
+const startScreen=document.getElementById("start-screen");
+const pauseScreen=document.getElementById("pause-screen");
+const finishScreen=document.getElementById("finish-screen");
+const countdownEl=document.getElementById("countdown");
+const finalPosEl=document.getElementById("final-pos");
+const finalTimeEl=document.getElementById("final-time");
+const finalBestEl=document.getElementById("final-best");
+const finalSpeedEl=document.getElementById("final-speed");
+
+// ---- Audio ----
+let audioCtx=null, engineOsc=null, engineGain=null, boostOsc=null, boostGain=null, masterGain=null;
+
+function initAudio(){
+  if(audioCtx)return;
+  try{
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    masterGain=audioCtx.createGain();
+    masterGain.gain.value=0.15;
+    masterGain.connect(audioCtx.destination);
+    engineOsc=audioCtx.createOscillator();
+    engineOsc.type="sawtooth";
+    engineGain=audioCtx.createGain();
+    engineGain.gain.value=0;
+    engineOsc.connect(engineGain);
+    engineGain.connect(masterGain);
+    engineOsc.frequency.value=80;
+    engineOsc.start();
+    boostOsc=audioCtx.createOscillator();
+    boostOsc.type="square";
+    boostGain=audioCtx.createGain();
+    boostGain.gain.value=0;
+    boostOsc.connect(boostGain);
+    boostGain.connect(masterGain);
+    boostOsc.frequency.value=160;
+    boostOsc.start();
+  }catch(e){}
+}
+
+function playCollisionSound(){
+  if(!audioCtx)return;
+  try{
+    const buf=audioCtx.createBuffer(1, audioCtx.sampleRate*0.15, audioCtx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*(1-i/d.length)*0.4;
+    const src=audioCtx.createBufferSource();
+    src.buffer=buf;
+    const g=audioCtx.createGain();
+    g.gain.value=1;
+    src.connect(g);
+    g.connect(masterGain);
+    src.start();
+    setTimeout(()=>{try{g.disconnect()}catch(e){}},200);
+  }catch(e){}
+}
+
+function playLapSound(){
+  if(!audioCtx)return;
+  try{
+    [440,554,659,880].forEach((f,i)=>{
+      const osc=audioCtx.createOscillator();
+      const g=audioCtx.createGain();
+      osc.type="sine";
+      osc.frequency.value=f;
+      g.gain.setValueAtTime(0,audioCtx.currentTime);
+      g.gain.linearRampToValueAtTime(0.2,audioCtx.currentTime+i*0.08);
+      g.gain.linearRampToValueAtTime(0,audioCtx.currentTime+i*0.08+0.15);
+      osc.connect(g);
+      g.connect(masterGain);
+      osc.start(audioCtx.currentTime+i*0.08);
+      osc.stop(audioCtx.currentTime+i*0.08+0.2);
+    });
+  }catch(e){}
+}
+
+function playFinishSound(){
+  if(!audioCtx)return;
+  try{
+    [523,659,784,1047].forEach((f,i)=>{
+      const osc=audioCtx.createOscillator();
+      const g=audioCtx.createGain();
+      osc.type="triangle";
+      osc.frequency.value=f;
+      g.gain.setValueAtTime(0,audioCtx.currentTime);
+      g.gain.linearRampToValueAtTime(0.25,audioCtx.currentTime+i*0.12);
+      g.gain.linearRampToValueAtTime(0,audioCtx.currentTime+i*0.12+0.3);
+      osc.connect(g);
+      g.connect(masterGain);
+      osc.start(audioCtx.currentTime+i*0.12);
+      osc.stop(audioCtx.currentTime+i*0.12+0.4);
+    });
+  }catch(e){}
+}
+
+function updateEngineSound(speed,boostActive){
+  if(!engineOsc||!engineGain)return;
+  const norm=speed/CFG.MAX_SPEED;
+  engineOsc.frequency.value=60+norm*180;
+  engineGain.gain.value=0.08+norm*0.18;
+  if(boostOsc&&boostGain){
+    boostGain.gain.value=boostActive?0.04+norm*0.06:0;
+    boostOsc.frequency.value=120+norm*220;
+  }
+}
+
+// ---- Track Generation ----
+let track=[];
+
+function generateTrack(){
+  track=[];
+  // More varied and interesting track layout
+  const phases=[2.3,3.7,5.1,7.9,10.3];
+  const amps=[0.18,0.12,0.07,0.04,0.03];
+  const shifts=[0,1.4,0.7,2.1,3.2];
+  for(let i=0;i<CFG.SEGMENTS;i++){
+    const t=i/CFG.SEGMENTS*Math.PI*2;
+    let curve=0;
+    for(let p=0;p<phases.length;p++){
+      curve+=Math.sin(t*phases[p]+shifts[p])*amps[p];
+    }
+    // Add some sharper "S-curve" sections
+    const sCurve=Math.sin(t*12+0.5)*0.04*Math.max(0,Math.sin(t*3.2)*2);
+    curve+=sCurve;
+    curve=Math.max(-0.35,Math.min(0.35,curve));
+    track.push({curve});
+  }
+  // Blend first/last to ensure loop
+  const blend=40;
+  for(let i=0;i<blend;i++){
+    const f=i/blend;
+    const ia=i, ib=CFG.SEGMENTS-blend+i;
+    const ca=track[ia].curve, cb=track[ib].curve;
+    track[ia].curve=ca*(1-f)+cb*f;
+    track[ib].curve=cb*(1-f)+ca*f;
+  }
+}
+
+// ---- Game State ----
+let gameState="start";
+let player=null;
+let aiCars=[];
+let keys={};
+let raceTime=0;
+let topSpeed=0;
+let bestLap=Infinity;
+let lapStartTime=0;
+let shakeTimer=0;
+let shakeIntensity=0;
+let frameCount=0;
+let countdownValue=3;
+let countdownTimer=0;
+let draftingActive=false;
+const TRACK_LENGTH=CFG.SEGMENTS*CFG.SEG_LEN;
+
+function getSegmentIndex(pos){
+  const idx=Math.floor(pos/CFG.SEG_LEN)%CFG.SEGMENTS;
+  return idx>=0?idx:idx+CFG.SEGMENTS;
+}
+
+function createPlayer(){
+  return{
+    trackPos:0, lateralOffset:0, speed:0,
+    boost:CFG.BOOST_MAX, lap:0, collisionCooldown:0
+  };
+}
+
+function createAI(index){
+  return{
+    trackPos:(index+1)*TRACK_LENGTH/(CFG.AI_COUNT+1),
+    lateralOffset:(index-CFG.AI_COUNT/2+0.5)*0.4,
+    speed:30+Math.random()*20,
+    baseSpeed:140+Math.random()*80,
+    skill:0.6+Math.random()*0.3,
+    lap:0, color:["#2266ff","#33cc33","#ffcc00","#ffffff","#ff8800"][index],
+    index:index, wiggle:Math.random()*100
+  };
+}
+
+function resetGame(){
+  generateTrack();
+  player=createPlayer();
+  aiCars=[];
+  for(let i=0;i<CFG.AI_COUNT;i++) aiCars.push(createAI(i));
+  raceTime=0; topSpeed=0; bestLap=Infinity; lapStartTime=0;
+  shakeTimer=0; shakeIntensity=0; frameCount=0; draftingActive=false;
+  startScreen.classList.remove("active");
+  pauseScreen.classList.remove("active");
+  finishScreen.classList.remove("active");
+}
+
+// ---- Input ----
+document.addEventListener("keydown",(e)=>{
+  const k=e.key;
+  keys[k]=true;
+  if(k===" "||k==="Space") e.preventDefault();
+  if(gameState==="start"&&(k===" "||k==="Space")){
+    initAudio(); resetGame(); startCountdown(); return;
+  }
+  if(gameState==="playing"&&(k==="p"||k==="P"||k==="Escape")){
+    gameState="paused"; pauseScreen.classList.add("active");
+    if(audioCtx) audioCtx.suspend(); return;
+  }
+  if(gameState==="paused"&&(k==="p"||k==="P"||k==="Escape")){
+    gameState="playing"; pauseScreen.classList.remove("active");
+    if(audioCtx) audioCtx.resume(); return;
+  }
+  if(gameState==="finished"&&(k===" "||k==="Space")){
+    gameState="start"; finishScreen.classList.remove("active");
+    startScreen.classList.add("active"); return;
+  }
+});
+document.addEventListener("keyup",(e)=>{keys[e.key]=false;});
+
+// ---- Countdown ----
+function startCountdown(){
+  gameState="countdown"; countdownValue=3; countdownTimer=0;
+  showCountdown(3);
+}
+function showCountdown(val){
+  if(val<=0){countdownEl.textContent="GO!";countdownEl.style.color="#33ff33";}
+  else{countdownEl.textContent=val;countdownEl.style.color="#ff3333";}
+  countdownEl.style.opacity=1;
+  countdownEl.style.transform="translate(-50%,-50%) scale(1.3)";
+  setTimeout(()=>{
+    countdownEl.style.opacity=0;
+    countdownEl.style.transform="translate(-50%,-50%) scale(1)";
+  },250);
+}
+
+// ---- Physics ----
+function updatePlayer(dt){
+  if(gameState!=="playing") return;
+  frameCount++;
+  draftingActive=false;
+
+  // Acceleration & braking
+  const accelInput=!!(keys["ArrowUp"]||keys["w"]||keys["W"]);
+  const brakeInput=!!(keys["ArrowDown"]||keys["s"]||keys["S"]);
+  if(accelInput) player.speed+=CFG.ACCEL*dt;
+  if(brakeInput) player.speed-=CFG.BRAKE*dt;
+  player.speed*=Math.pow(CFG.FRICTION,dt*60);
+
+  // Boost
+  let boostActive=false;
+  if((keys[" "]||keys["Space"])&&player.boost>0){
+    player.speed+=CFG.BOOST_SPEED*dt;
+    player.boost-=CFG.BOOST_DRAIN*dt;
+    if(player.boost<0) player.boost=0;
+    boostActive=true;
+  }else{
+    player.boost+=CFG.BOOST_REGEN*dt;
+    if(player.boost>CFG.BOOST_MAX) player.boost=CFG.BOOST_MAX;
+  }
+
+  // Clamp speed
+  player.speed=Math.max(0,Math.min(CFG.MAX_SPEED,player.speed));
+  if(player.speed>topSpeed) topSpeed=player.speed;
+
+  // Steering
+  let steer=0;
+  if(keys["ArrowLeft"]||keys["a"]||keys["A"]) steer=-1;
+  if(keys["ArrowRight"]||keys["d"]||keys["D"]) steer=1;
+  const speedFactor=1-(player.speed/CFG.MAX_SPEED)*0.45;
+  player.lateralOffset+=steer*CFG.STEER_SPEED*speedFactor*dt;
+
+  // Centering
+  if(steer===0) player.lateralOffset*=Math.pow(CFG.CENTER_DAMP,dt*60);
+  const maxLat=0.85;
+  player.lateralOffset=Math.max(-maxLat,Math.min(maxLat,player.lateralOffset));
+
+  // Advance position
+  player.trackPos+=player.speed*dt*0.8;
+
+  // Curve centrifugal force
+  const segIdx=getSegmentIndex(player.trackPos);
+  const curve=track[segIdx].curve;
+  player.lateralOffset+=curve*(player.speed/CFG.MAX_SPEED)*1.8*dt;
+  player.lateralOffset=Math.max(-maxLat,Math.min(maxLat,player.lateralOffset));
+
+  // Lap detection
+  if(player.trackPos>=TRACK_LENGTH){
+    player.trackPos-=TRACK_LENGTH; player.lap++;
+    const lapTime=raceTime-lapStartTime;
+    if(lapTime<bestLap&&player.lap>1) bestLap=lapTime;
+    lapStartTime=raceTime;
+    playLapSound();
+    if(player.lap>=CFG.TOTAL_LAPS){
+      player.lap=CFG.TOTAL_LAPS; finishRace(); return;
+    }
+  }
+  if(player.trackPos<0) player.trackPos+=TRACK_LENGTH;
+
+  // Collision cooldown
+  if(player.collisionCooldown>0) player.collisionCooldown-=dt;
+  updateEngineSound(player.speed,boostActive);
+
+  // Collision detection + drafting
+  for(let ai of aiCars){
+    if(ai.lap<0) continue;
+    let dist=Math.abs(player.trackPos-ai.trackPos);
+    if(dist>TRACK_LENGTH/2) dist=TRACK_LENGTH-dist;
+    const latDist=Math.abs(player.lateralOffset-ai.lateralOffset)*CFG.ROAD_HALF;
+
+    // Drafting / slipstream
+    if(dist<CFG.DRAFT_RANGE&&latDist<CFG.CAR_WIDTH*1.5){
+      if(player.trackPos<ai.trackPos||(player.trackPos<TRACK_LENGTH/2&&ai.trackPos>TRACK_LENGTH/2)){
+        // Player is BEHIND AI → get drafting bonus
+        draftingActive=true;
+        player.speed+=CFG.DRAFT_BONUS*dt;
+      }
+    }
+
+    // Collision
+    if(dist<CFG.COLLISION_RANGE&&latDist<CFG.CAR_WIDTH&&player.collisionCooldown<=0){
+      player.speed*=0.5;
+      player.collisionCooldown=0.6;
+      shakeTimer=0.35; shakeIntensity=10;
+      playCollisionSound();
+      ai.speed*=0.6;
+      ai.lateralOffset+=(ai.lateralOffset>player.lateralOffset?0.4:-0.4);
+      if(player.speed>80){
+        shakeIntensity=14+player.speed/30;
+        shakeTimer=0.5;
+      }
+    }
+  }
+}
+
+function updateAI(dt){
+  for(let ai of aiCars){
+    if(ai.lap>CFG.TOTAL_LAPS) continue;
+
+    // Look ahead for curves
+    const lookAhead=15+Math.floor(ai.speed/30);
+    const segIdx=getSegmentIndex(ai.trackPos+lookAhead);
+    const aheadCurve=Math.abs(track[segIdx].curve);
+
+    // Current curve for positioning
+    const curSeg=getSegmentIndex(ai.trackPos);
+    const currentCurve=track[curSeg].curve;
+
+    // Target speed based on upcoming curve and skill
+    let targetSpeed=ai.baseSpeed*(1-aheadCurve*1.8*(1-ai.skill*0.4));
+    targetSpeed=Math.max(65,targetSpeed);
+
+    // Speed modulation
+    const diff=targetSpeed-ai.speed;
+    ai.speed+=diff*(1.2+ai.skill*0.6)*dt;
+    // Wobble for personality
+    ai.speed+=Math.sin(frameCount*0.025+ai.wiggle)*6*dt;
+    ai.speed=Math.max(40,Math.min(CFG.MAX_SPEED*0.88+ai.skill*20,ai.speed));
+
+    // Racing line: cut toward apex, drift out
+    const curveDirection=currentCurve>0?1:-1;
+    const targetLat=-curveDirection*0.15*Math.min(1,Math.abs(currentCurve)*3);
+    ai.lateralOffset+=(targetLat-ai.lateralOffset)*(1.5+ai.skill)*dt;
+    // Curve centering force
+    ai.lateralOffset+=currentCurve*1.5*dt;
+    // Damping
+    ai.lateralOffset*=Math.pow(0.96,dt*60);
+
+    // Avoid driving off road
+    ai.lateralOffset=Math.max(-0.75,Math.min(0.75,ai.lateralOffset));
+
+    // Check if AI is near player for defensive/aggressive moves
+    let distToPlayer=Math.abs(ai.trackPos-player.trackPos);
+    if(distToPlayer>TRACK_LENGTH/2) distToPlayer=TRACK_LENGTH-distToPlayer;
+    if(distToPlayer<30){
+      const playerBehind=player.trackPos<ai.trackPos;
+      if(!playerBehind){
+        // Player is catching up → slight defense
+        ai.lateralOffset+=Math.sin(frameCount*0.05)*0.3*dt;
+      }
+    }
+
+    // Move along track
+    ai.trackPos+=ai.speed*dt*0.8;
+
+    // Lap wrap
+    if(ai.trackPos>=TRACK_LENGTH){
+      ai.trackPos-=TRACK_LENGTH; ai.lap++;
+      if(ai.lap>=CFG.TOTAL_LAPS) ai.lap=CFG.TOTAL_LAPS;
+    }
+    if(ai.trackPos<0) ai.trackPos+=TRACK_LENGTH;
+  }
+}
+
+// ---- Race Management ----
+function finishRace(){
+  gameState="finished";
+  playFinishSound();
+  if(audioCtx) audioCtx.suspend();
+  const allRacers=getRacePositions();
+  const playerPos=allRacers.findIndex(r=>!r.isAI)+1;
+  const posText=playerPos===1?"1st":playerPos===2?"2nd":playerPos===3?"3rd":playerPos+"th";
+  finalPosEl.textContent=posText;
+  const mins=Math.floor(raceTime/60);
+  const secs=(raceTime%60).toFixed(2);
+  finalTimeEl.textContent="Time: "+mins+":"+(secs<10?"0":"")+secs;
+  if(bestLap<Infinity){
+    const bm=Math.floor(bestLap/60);
+    const bs=(bestLap%60).toFixed(2);
+    finalBestEl.textContent="Best Lap: "+bm+":"+(bs<10?"0":"")+bs;
+  }
+  finalSpeedEl.textContent="Top Speed: "+Math.round(topSpeed)+" km/h";
+  finishScreen.classList.add("active");
+}
+
+function getRacePositions(){
+  const racers=[];
+  racers.push({trackPos:player.trackPos,lap:player.lap,isAI:false});
+  for(let ai of aiCars)
+    racers.push({trackPos:ai.trackPos,lap:ai.lap,isAI:true});
+  racers.sort((a,b)=>{
+    if(b.lap!==a.lap) return b.lap-a.lap;
+    return b.trackPos-a.trackPos;
+  });
+  return racers;
+}
+
+function getPlayerPosition(){
+  return getRacePositions().findIndex(r=>!r.isAI)+1;
+}
+
+// ============================================================
+//  RENDERING ENGINE
+// ============================================================
+
+function drawSky(){
+  const grd=ctx.createLinearGradient(0,0,0,CFG.HORIZON+12);
+  grd.addColorStop(0,"#060918");
+  grd.addColorStop(0.3,"#0e1535");
+  grd.addColorStop(0.6,"#1a254a");
+  grd.addColorStop(1,"#2a3565");
+  ctx.fillStyle=grd;
+  ctx.fillRect(0,0,CFG.W,CFG.HORIZON+12);
+  // Stars
+  ctx.fillStyle="#ffffff";
+  for(let i=0;i<35;i++){
+    const sx=(i*139+53)%CFG.W;
+    const sy=(i*97+17)%(CFG.HORIZON-10);
+    ctx.fillRect(sx,sy,(i%4===0)?2:1,1);
+  }
+  // Mountain silhouette at horizon
+  ctx.fillStyle="#0a0e1a";
+  for(let mx=0;mx<CFG.W;mx++){
+    const mh=Math.sin(mx*0.037)*7+Math.sin(mx*0.089+1)*4+Math.sin(mx*0.021+2)*5;
+    ctx.fillRect(mx,CFG.HORIZON+5-Math.floor(mh),1,Math.floor(mh)+6);
+  }
+  // Horizon glow
+  const hgrd=ctx.createLinearGradient(0,CFG.HORIZON-4,0,CFG.HORIZON+8);
+  hgrd.addColorStop(0,"rgba(200,180,255,0)");
+  hgrd.addColorStop(0.5,"rgba(200,180,255,0.06)");
+  hgrd.addColorStop(1,"rgba(200,180,255,0)");
+  ctx.fillStyle=hgrd;
+  ctx.fillRect(0,CFG.HORIZON-4,CFG.W,12);
+}
+
+function drawRoad(){
+  if(!player) return;
+  // Background fill
+  ctx.fillStyle="#1a4a1a";
+  ctx.fillRect(0,CFG.HORIZON+12,CFG.W,CFG.H-CFG.HORIZON-12);
+
+  const segIdx=getSegmentIndex(player.trackPos);
+  let prev=null;
+  const drawnAI={};
+  // Proper heading-based curve computation
+  let heading=0, worldX=0;
+  // Pre-compute curve segments ahead for AI lookahead
+  const curveStr=0.25; // radians per unit curve per segment
+
+  for(let n=1;n<=CFG.DRAW_DIST;n++){
+    const idx=(segIdx+n)%CFG.SEGMENTS;
+    const seg=track[idx];
+    heading+=seg.curve*curveStr;
+    worldX+=Math.sin(heading)*CFG.SEG_LEN;
+
+    const z=Math.max(1,n*CFG.SEG_LEN);
+    const scale=CFG.FOCAL/z;
+    // Player lateral offset in world space, projected
+    const latWorld=player.lateralOffset*CFG.ROAD_HALF;
+    const latOffset=latWorld*scale;
+    // Apply world X with proper perspective
+    const screenY=CFG.HORIZON+CFG.CAM_H*scale;
+    const screenCenterX=CFG.W/2+worldX*scale+latOffset;
+
+    const roadHalfScreen=CFG.ROAD_HALF*scale;
+    const rumbleScreen=CFG.RUMBLE*scale;
+    const grassEdge=25*scale;
+
+    const grassL=screenCenterX-roadHalfScreen-rumbleScreen-grassEdge;
+    const roadL=screenCenterX-roadHalfScreen-rumbleScreen;
+    const rumbleL=screenCenterX-roadHalfScreen;
+    const rumbleR=screenCenterX+roadHalfScreen;
+    const roadR=screenCenterX+roadHalfScreen+rumbleScreen;
+    const grassR=screenCenterX+roadHalfScreen+rumbleScreen+grassEdge;
+
+    const cur={screenY,screenCenterX,roadHalfScreen,rumbleScreen,grassL,roadL,rumbleL,rumbleR,roadR,grassR,z,n,idx,worldX};
+
+    if(prev&&cur.screenY>CFG.HORIZON+2&&cur.screenY<CFG.H+5){
+      const yTop=Math.max(CFG.HORIZON+1,cur.screenY);
+      const yBot=Math.min(CFG.H,prev.screenY);
+      const h=Math.max(1,yBot-yTop);
+      if(h>0&&yTop<CFG.H){
+        // Grass with alternating pattern
+        ctx.fillStyle=(n%6<3)?"#1a4e1a":"#1e5a1e";
+        ctx.fillRect(0,yTop,Math.max(0,cur.grassL),h);
+        ctx.fillRect(Math.min(CFG.W,cur.grassR),yTop,CFG.W-cur.grassR,h);
+        // Grass edge detail (lighter stripe)
+        ctx.fillStyle="rgba(80,140,60,"+(0.12*Math.min(1,z/200))+")";
+        ctx.fillRect(Math.max(0,cur.grassL),yTop,Math.min(cur.roadL-cur.grassL,3*scale+1),h);
+        ctx.fillRect(Math.max(0,cur.grassR-3*scale-1),yTop,Math.min(CFG.W-cur.grassR,3*scale+1),h);
+
+        // Rumble strips
+        ctx.fillStyle=(n%4<2)?"#cc2222":"#ffffff";
+        ctx.fillRect(Math.max(0,cur.roadL),yTop,Math.max(1,cur.rumbleL-cur.roadL),h);
+        ctx.fillRect(cur.rumbleR,yTop,Math.max(1,cur.roadR-cur.rumbleR),h);
+
+        // Road surface with subtle distance haze
+        const haze=Math.min(1,Math.max(0,(z-200)/1500));
+        const baseGray=55;
+        const r=Math.floor((baseGray+20)*(1-haze)+80*haze);
+        const g=Math.floor((baseGray+20)*(1-haze)+80*haze);
+        const b=Math.floor((baseGray+30)*(1-haze)+90*haze);
+        ctx.fillStyle="rgb("+r+","+g+","+b+")";
+        ctx.fillRect(cur.rumbleL,yTop,cur.rumbleR-cur.rumbleL,h);
+
+        // Start/finish checkered
+        if(idx<3){
+          const cs=Math.max(2,5*scale);
+          const cols=Math.floor((cur.rumbleR-cur.rumbleL)/cs);
+          for(let c=0;c<cols;c++){
+            ctx.fillStyle=(c+(idx%2))%2===0?"#ffffff":"#111111";
+            ctx.fillRect(cur.rumbleL+c*cs,yTop,cs,h);
+          }
+        }
+
+        // Center line dashes
+        if(n%5<2){
+          const cw=Math.max(1,2*scale);
+          ctx.fillStyle="rgba(255,255,180,"+(0.7+0.3*(1-Math.min(1,z/800)))+")";
+          ctx.fillRect(cur.screenCenterX-cw/2,yTop,cw,h);
+        }
+
+        // Side white lines
+        const sw=Math.max(1,1.5*scale);
+        ctx.fillStyle="rgba(255,255,255,"+(0.5+0.5*(1-Math.min(1,z/600)))+")";
+        ctx.fillRect(cur.rumbleL,yTop,sw,h);
+        ctx.fillRect(cur.rumbleR-sw,yTop,sw,h);
+      }
+    }
+
+    // Draw AI cars
+    for(let ai of aiCars){
+      if(ai.lap<0||drawnAI[ai.index]) continue;
+      const aiSeg=Math.floor(ai.trackPos/CFG.SEG_LEN)%CFG.SEGMENTS;
+      if(aiSeg===idx&&cur.screenY>CFG.HORIZON+6&&cur.screenY<CFG.H-12){
+        drawnAI[ai.index]=true;
+        const s=scale;
+        // Bigger cars with minimum size for visibility at distance
+        const cw=Math.max(3,60*s), ch=Math.max(2,18*s);
+        const aiX=cur.screenCenterX+ai.lateralOffset*CFG.ROAD_HALF*s*0.8;
+        const aiY=cur.screenY-ch;
+        // Simplified rendering for far cars
+        if(s<0.12){
+          ctx.fillStyle=ai.color;
+          ctx.fillRect(aiX-1,aiY,3,2);
+          continue;
+        }
+        // Shadow
+        ctx.fillStyle="rgba(0,0,0,0.3)";
+        ctx.fillRect(aiX-cw/2+1,aiY+1,cw,ch);
+        // Main body
+        ctx.fillStyle=ai.color;
+        ctx.fillRect(aiX-cw/2,aiY,cw,ch);
+        // Nose cone
+        ctx.fillRect(aiX-cw/2-1,aiY+ch*0.2,2,ch*0.4);
+        // Rear wing
+        ctx.fillRect(aiX-cw/2-1,aiY-ch*0.35,cw+2,Math.max(1,ch*0.4));
+        // Wheels
+        ctx.fillStyle="#222";
+        ctx.fillRect(aiX-cw/2-2,aiY+ch*0.2,2,ch*0.5);
+        ctx.fillRect(aiX+cw/2,aiY+ch*0.2,2,ch*0.5);
+        // Driver number
+        if(s>0.18){
+          ctx.fillStyle="#fff";
+          ctx.font=Math.max(3,Math.floor(4*s))+"px monospace";
+          ctx.textAlign="center";
+          ctx.fillText(ai.index+1,aiX,aiY+ch*0.65);
+        }
+        // Brake glow
+        if(s>0.25){
+          ctx.fillStyle="#ff3300";
+          ctx.fillRect(aiX-cw/2-1,aiY+ch*0.3,1,ch*0.2);
+          ctx.fillRect(aiX+cw/2,aiY+ch*0.3,1,ch*0.2);
+        }
+      }
+    }
+    prev=cur;
+  }
+
+  // High-speed particles on side
+  if(player&&player.speed>160){
+    const intens=(player.speed-160)/180;
+    ctx.fillStyle="rgba(200,200,255,"+(intens*0.25)+")";
+    for(let i=0;i<Math.floor(intens*10);i++){
+      const px=(i*57+frameCount*4)%CFG.W;
+      const py=CFG.H-20-(i*17+frameCount*3)%90;
+      ctx.fillRect(px,py,2,6-i%3);
+    }
+  }
+
+  // Tire smoke in hard turns at speed
+  if(player&&player.speed>100&&Math.abs(player.lateralOffset)>0.4){
+    const smokeInt=Math.abs(player.lateralOffset)*player.speed/300*0.3;
+    ctx.fillStyle="rgba(200,200,220,"+smokeInt+")";
+    for(let i=0;i<3;i++){
+      const sx=CFG.W/2-10+Math.sin(frameCount*0.1+i)*20;
+      const sy=CFG.H-40-(frameCount*2+i*10)%30;
+      ctx.fillRect(sx,sy,5,3);
+    }
+  }
+}
+
+// ---- Cockpit / HUD ----
+function drawCockpit(){
+  const W=CFG.W,H=CFG.H;
+  // Halo frame (top)
+  ctx.fillStyle="#0a0a0a";
+  ctx.fillRect(0,0,W,5);
+  // Halo center pillar
+  ctx.fillStyle="#1a1a1a";
+  ctx.fillRect(W/2-4,0,8,12);
+  // Side cockpit walls
+  ctx.fillStyle="#0d0d0d";
+  ctx.fillRect(0,0,7,H);
+  ctx.fillRect(W-7,0,7,H);
+  // Carbon panel texture on sides
+  ctx.fillStyle="#141414";
+  ctx.fillRect(7,12,4,H-50);
+  ctx.fillRect(W-11,12,4,H-50);
+
+  // Dashboard panel (bottom)
+  ctx.fillStyle="#0a0a0a";
+  ctx.fillRect(0,H-32,W,32);
+  // Dashboard carbon stripe
+  ctx.fillStyle="#111";
+  ctx.fillRect(0,H-32,W,3);
+  ctx.fillStyle="#181818";
+  ctx.fillRect(0,H-29,W,1);
+
+  // === SPEED DISPLAY (large LED-style) ===
+  const speed=Math.round(player?player.speed:0);
+  const spdStr=String(speed).padStart(3,'0');
+  // Speed panel background
+  ctx.fillStyle="#000";
+  ctx.fillRect(90,H-30,120,26);
+  ctx.strokeStyle="#333";
+  ctx.lineWidth=1;
+  ctx.strokeRect(90,H-30,120,26);
+  // LED segments (big digits)
+  ctx.font="22px monospace";
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+  // Digit glow effect
+  ctx.shadowColor="#ff3333";
+  ctx.shadowBlur=4;
+  ctx.fillStyle="#ff2222";
+  ctx.fillText(spdStr,150,H-17);
+  ctx.shadowBlur=0;
+  // km/h label
+  ctx.font="8px monospace";
+  ctx.fillStyle="#ff6666";
+  ctx.fillText("KM/H",150,H-5);
+
+  // === GEAR INDICATOR ===
+  const gear=player?(player.speed>280?6:player.speed>230?5:player.speed>180?4:player.speed>120?3:player.speed>60?2:1):1;
+  ctx.fillStyle="#111";
+  ctx.fillRect(10,H-28,30,22);
+  ctx.strokeStyle="#333";
+  ctx.strokeRect(10,H-28,30,22);
+  ctx.font="18px monospace";
+  ctx.textAlign="center";
+  ctx.fillStyle="#ffcc00";
+  ctx.fillText(gear,25,H-15);
+  ctx.font="6px monospace";
+  ctx.fillStyle="#886600";
+  ctx.fillText("GEAR",25,H-4);
+
+  // === BOOST GAUGE (segmented bar) ===
+  const bp=player?player.boost/CFG.BOOST_MAX:0;
+  ctx.fillStyle="#111";
+  ctx.fillRect(215,H-28,95,12);
+  ctx.strokeStyle="#444";
+  ctx.strokeRect(215,H-28,95,12);
+  // Segments
+  const segs=10;
+  for(let i=0;i<segs;i++){
+    const fill=i/segs<bp;
+    ctx.fillStyle=fill?(bp>0.3?"#33ff33":bp>0.1?"#ffcc00":"#ff3333"):"#1a1a1a";
+    ctx.fillRect(217+i*9,H-26,7,8);
+  }
+  ctx.font="6px monospace";
+  ctx.fillStyle="#888";
+  ctx.textAlign="center";
+  ctx.fillText("BOOST",262,H-9);
+
+  // === RPM BAR ===
+  if(player){
+    const rpm=player.speed/CFG.MAX_SPEED;
+    ctx.fillStyle="#111";
+    ctx.fillRect(215,H-17,95,5);
+    const lit=Math.floor(rpm*12);
+    for(let i=0;i<12;i++){
+      ctx.fillStyle=i<lit?(i<8?"#33ff33":i<10?"#ffcc00":"#ff3333"):"#1a1a1a";
+      ctx.fillRect(216+i*8,H-16,6,3);
+    }
+  }
+
+  // === LAP COUNTER ===
+  if(player){
+    ctx.textAlign="left";
+    ctx.font="12px monospace";
+    ctx.fillStyle="#ffffff";
+    ctx.fillText("LAP "+Math.min(player.lap+1,CFG.TOTAL_LAPS)+"/"+CFG.TOTAL_LAPS,48,H-9);
+  }
+
+  // === POSITION ===
+  if(player){
+    const pos=getPlayerPosition();
+    const pc=["","#ffcc00","#ccc","#ff8844","#888","#888"];
+    ctx.fillStyle=pc[pos]||"#888";
+    ctx.textAlign="right";
+    ctx.font="18px monospace";
+    const sf=pos===1?"ST":pos===2?"ND":pos===3?"RD":"TH";
+    ctx.fillText("P."+pos+sf,W-50,H-12);
+    // Small position label
+    ctx.font="6px monospace";
+    ctx.fillStyle="#888";
+    ctx.fillText("POS",W-50,H-3);
+
+    // === RACE TIME ===
+    ctx.textAlign="right";
+    ctx.font="9px monospace";
+    ctx.fillStyle="#aaa";
+    const mins=Math.floor(raceTime/60);
+    const secs=(raceTime%60).toFixed(1);
+    ctx.fillText(mins+":"+(secs<10?"0":"")+secs,W-12,H-12);
+
+    // === BEST LAP ===
+    if(bestLap<Infinity){
+      ctx.textAlign="left";
+      ctx.font="7px monospace";
+      ctx.fillStyle="#66ff66";
+      const bm=Math.floor(bestLap/60);
+      const bs=(bestLap%60).toFixed(1);
+      ctx.fillText("BEST "+bm+":"+(bs<10?"0":"")+bs,12,H-4);
+    }
+  }
+
+  drawSteeringWheel();
+}
+
+function drawSteeringWheel(){
+  const cx=160,cy=198;
+  const sa=player?player.lateralOffset*0.4:0;
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.rotate(sa);
+  // Wheel rim (top and bottom arcs)
+  ctx.fillStyle="#1a1a1a";
+  ctx.fillRect(-16,-5,32,3);  // top rim
+  ctx.fillRect(-16,2,32,3);   // bottom rim
+  ctx.fillRect(-16,-5,3,10);  // left rim
+  ctx.fillRect(13,-5,3,10);   // right rim
+  // Center hub
+  ctx.fillStyle="#222";
+  ctx.fillRect(-5,-4,10,8);
+  // Inner hub detail
+  ctx.fillStyle="#333";
+  ctx.fillRect(-3,-2,6,4);
+  // Red button (DRS/boost)
+  ctx.fillStyle="#ff2200";
+  ctx.fillRect(-2,-1,4,2);
+  // Steering column
+  ctx.fillStyle="#0a0a0a";
+  ctx.fillRect(-2,3,4,8);
+  // Grip texture
+  ctx.fillStyle="#2a2a2a";
+  ctx.fillRect(-8,-4,16,1);
+  ctx.fillRect(-8,3,16,1);
+  // Shift lights on wheel
+  ctx.fillStyle="#ff3333";
+  ctx.fillRect(-12,-4,2,1);
+  ctx.fillRect(10,-4,2,1);
+  ctx.restore();
+}
+
+function drawHUD(){
+  if(!player) return;
+  // Speed lines at high speed
+  if(player.speed>180){
+    const alpha=(player.speed-180)/160*0.3;
+    ctx.fillStyle="rgba(200,210,255,"+alpha+")";
+    for(let i=0;i<8;i++){
+      const x=(i*50+frameCount*3)%CFG.W;
+      const y=CFG.H-45-(i*15+frameCount*4)%70;
+      ctx.fillRect(x,y,2,3+(i%3));
+    }
+  }
+  // Boost flame effect at bottom
+  if((keys[" "]||keys["Space"])&&player.boost>0){
+    const inten=player.boost/CFG.BOOST_MAX;
+    // Outer glow
+    ctx.fillStyle="rgba(255,120,0,"+(inten*0.35)+")";
+    ctx.fillRect(CFG.W/2-16,CFG.H-36,32,8);
+    // Inner flame
+    ctx.fillStyle="rgba(255,220,50,"+(inten*0.5)+")";
+    ctx.fillRect(CFG.W/2-8,CFG.H-38,16,10);
+    // Core
+    ctx.fillStyle="rgba(255,255,200,"+(inten*0.3)+")";
+    ctx.fillRect(CFG.W/2-3,CFG.H-40,6,12);
+  }
+  // Drafting indicator
+  if(draftingActive){
+    ctx.fillStyle="rgba(100,200,255,"+(0.3+Math.sin(frameCount*0.15)*0.15)+")";
+    ctx.font="8px monospace";
+    ctx.textAlign="center";
+    ctx.fillText("SLIPSTREAM",CFG.W/2,CFG.H-48);
+  }
+}
+
+// ---- Main Render ----
+function render(){
+  ctx.clearRect(0,0,CFG.W,CFG.H);
+  let shakeX=0,shakeY=0;
+  if(shakeTimer>0){
+    shakeX=(Math.random()-0.5)*shakeIntensity;
+    shakeY=(Math.random()-0.5)*shakeIntensity;
+    ctx.save();
+    ctx.translate(shakeX,shakeY);
+  }
+  drawSky();
+  if(gameState==="playing"||gameState==="paused"||gameState==="finished"||gameState==="countdown"){
+    drawRoad();
+    if(gameState!=="finished"){drawCockpit();drawHUD();}
+  }
+  if(shakeTimer>0){ctx.restore();shakeTimer-=1/60;if(shakeTimer<0)shakeTimer=0;}
+  // Mini position bar (top of screen, only during gameplay)
+  if(player&&(gameState==="playing"||gameState==="paused")){
+    ctx.fillStyle="rgba(0,0,0,0.4)";
+    ctx.fillRect(CFG.W/2-50,2,100,8);
+    ctx.font="6px monospace";
+    ctx.textAlign="center";
+    ctx.fillStyle="#aaa";
+    const pos=getPlayerPosition();
+    const sf=pos===1?"st":pos===2?"nd":pos===3?"rd":"th";
+    ctx.fillText("RACE POSITION: "+pos+sf+"  LAP "+Math.min(player.lap+1,CFG.TOTAL_LAPS)+"/"+CFG.TOTAL_LAPS,CFG.W/2,9);
+  }
+}
+
+// ============================================================
+//  GAME LOOP
+// ============================================================
+
+let lastTime=0;
+
+function gameLoop(time){
+  const dt=Math.min(1/30,(time-lastTime)/1000);
+  lastTime=time;
+  if(gameState==="playing") raceTime+=dt;
+  if(gameState==="playing"){updatePlayer(dt);updateAI(dt);}
+  if(gameState==="countdown"){
+    countdownTimer+=dt;
+    if(countdownTimer>=1.0&&countdownValue>0){
+      countdownValue--;
+      if(countdownValue>0) showCountdown(countdownValue);
+      else{
+        showCountdown(0);
+        setTimeout(()=>{gameState="playing";},400);
+      }
+      countdownTimer=0;
+    }
+  }
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+// ---- Init ----
+function resizeCanvas(){
+  const wrapper=document.getElementById("wrapper");
+  const maxW=window.innerWidth;
+  const maxH=window.innerHeight;
+  const ratio=800/600;
+  let w=maxW;
+  let h=w/ratio;
+  if(h>maxH){h=maxH;w=h*ratio;}
+  canvas.style.width=w+"px";
+  canvas.style.height=h+"px";
+  document.querySelectorAll(".overlay,#countdown").forEach(el=>{
+    el.style.width=w+"px";
+    el.style.height=h+"px";
+  });
+}
+
+window.addEventListener("resize",resizeCanvas);
+resizeCanvas();
+generateTrack();
+startScreen.classList.add("active");
+finalPosEl.textContent="---";
+requestAnimationFrame(gameLoop);
+console.log("F1 Pixel Racing loaded!");
+</script>
+</body>
+</html>
