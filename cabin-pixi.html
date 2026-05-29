@@ -67,7 +67,7 @@
 </style>
 </head>
 <body>
-<a class="back-btn" href="index.html">&larr; 返回</a>
+<a class="back-btn" href="index.html" id="backBtn">&larr; 返回</a>
 
 <div id="split">
   <div class="half">
@@ -590,5 +590,6 @@ requestAnimationFrame(loop);
 // Replay
 document.getElementById('replay-btn').addEventListener('click',()=>{cur=0;el=0;ps=false;pe=0;pt=[];ci();dib();});
 </script>
+<script>(function(){var b=document.getElementById("backBtn");if(document.referrer&&!document.referrer.includes("index.html")){b.href="javascript:history.back()";b.innerHTML="← 后退";}})();</script>
 </body>
 </html>
