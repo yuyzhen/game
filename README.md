@@ -8,7 +8,7 @@
 
 | # | 项目 | 文件 | 技术栈 | 类型 |
 |---|------|------|--------|------|
-| 1 | 🐍 **贪吃蛇** (Snake) | `index.html` / `snake.html` / `snake2.html` | Canvas 2D | 游戏 |
+| — | 🎮 **游戏中心** (Game Hub) | `index.html` | — | 入口 |
 | 2 | 🧩 **俄罗斯方块** (Tetris) | `tetris.html` | Canvas 2D | 游戏 |
 | 3 | 🏎️ **F1 像素赛车** | `f1-racing.html` | Canvas 2D (伪3D) | 游戏 |
 | 4 | 🏠 **小屋建造动画** | `cabin.html` / `cabin-pixi.html` | Canvas 2D / PixiJS | 动画 |
@@ -38,9 +38,8 @@ python -m http.server 8000
 ### 文件
 | 版本 | 文件 | 特点 |
 |------|------|------|
-| 增强版 | `index.html` | 800×600 画布, BFS AI, 速度倍率(0.5x~1000x), 粒子效果, delta-time 循环 |
 | 基础版 | `snake.html` | 含 BFS 寻路 AI, 基础游戏循环 |
-| 增强版 | `snake2.html` | 同 index.html, 有速度倍率控制 |
+| 增强版 | `snake2.html` | 速度倍率 0.5x~1000x, 粒子效果, delta-time 循环 |
 
 ### AI 算法
 1. **BFS 寻路** → 计算到食物的最短路径
