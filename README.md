@@ -1,29 +1,223 @@
-# Tetris Bot
+# 🎮 Game Collection
 
-A small pygame Tetris implementation with a built-in heuristic bot.
+一个包含多个独立游戏的 Web + Python 项目合集，展示 Canvas 2D、PixiJS/WebGL、Pygame 等多种游戏开发技术。
 
-## Run the desktop version
+---
+
+## 📋 项目总览
+
+| # | 项目 | 文件 | 技术栈 | 类型 |
+|---|------|------|--------|------|
+| 1 | 🐍 **贪吃蛇** (Snake) | `index.html` / `snake.html` / `snake2.html` | Canvas 2D | 游戏 |
+| 2 | 🧩 **俄罗斯方块** (Tetris) | `app.js` + `styles.css` / `tetris_bot.py` | Canvas 2D / Pygame | 游戏 |
+| 3 | 🏎️ **F1 像素赛车** | `f1-racing.html` | Canvas 2D (伪3D) | 游戏 |
+| 4 | 🏠 **小屋建造动画** | `cabin.html` / `cabin-pixi.html` | Canvas 2D / PixiJS | 动画 |
+| 5 | 📐 **傅里叶级数** | `fourier.html` | Canvas 2D + PixiJS | 可视化 |
+| 6 | 📅 **日历应用** (Nexus) | `calendar.html` | 原生 JS + CSS | 工具 |
+| 7 | 📋 **看板应用** (TaskFlow Pro) | `kanban.html` | 原生 JS + CSS | 工具 |
+| 8 | 🔐 **登录页面** (Nexus) | `login.html` | 原生 JS + CSS | 页面 |
+
+---
+
+## 🚀 快速开始
+
+### Web 项目（全部可直接在浏览器打开）
 
 ```powershell
+# 方式一：直接双击 HTML 文件打开
+# 方式二：使用 HTTP 服务器
+python -m http.server 8000
+# 浏览器访问 http://localhost:8000
+```
+
+### Python 项目
+
+```powershell
+# 俄罗斯方块
+pip install pygame
 python tetris_bot.py
 ```
 
-## Run the web version
+---
 
-Open `index.html` in a browser, or serve the folder:
+## 🐍 1. 贪吃蛇 (Snake)
 
-```powershell
-python -m http.server 8000
+### 文件
+| 版本 | 文件 | 特点 |
+|------|------|------|
+| 增强版 | `index.html` | 800×600 画布, BFS AI, 速度倍率(0.5x~1000x), 粒子效果, delta-time 循环 |
+| 基础版 | `snake.html` | 含 BFS 寻路 AI, 基础游戏循环 |
+| 增强版 | `snake2.html` | 同 index.html, 有速度倍率控制 |
+
+### AI 算法
+1. **BFS 寻路** → 计算到食物的最短路径
+2. **安全验证** → 模拟吃完后能否回到尾部
+3. **逃生策略** → 若不能安全吃食物，选择能连接尾部的最佳方向
+4. **兜底方案** → 选择离食物最近的可用空格
+
+### 操作
+- `↑↓←→` 方向控制（手动模式）
+- `A` 切换 AI / 手动模式
+- `R` 重新开始
+- `+` / `-` 调节速度倍率（增强版）
+
+---
+
+## 🧩 2. 俄罗斯方块 (Tetris)
+
+### 文件
+| 版本 | 文件 | 特点 |
+|------|------|------|
+| 网页版 | `app.js` + `styles.css` | 7 种方块, 旋转, Ghost piece, Bot 自动落子, 暗色主题 |
+| Python 版 | `tetris_bot.py` | Game 类封装, 完整 Bot, Pygame 渲染 |
+
+### Bot 启发式评分
+遍历所有合法摆放位置，选择最优评分：
+
+```
+评分 = 4.6 × 消行数 - 0.51 × 总高度 - 3.2 × 空洞数 - 0.42 × 崎岖度 + 0.18 × 井深度
 ```
 
-## Controls
+Bot 还会前瞻 **下一个方块 (next piece)**，加权 0.72 纳入评分。
 
-- `B`: toggle bot/manual mode
-- `F`: toggle fast mode
-- `R`: restart
-- Arrow keys: move and rotate in manual mode
-- `Space`: hard drop
-- `Esc`: quit
+### 操作
+- `B` 切换 Bot / 手动模式
+- `F` 切换快速模式
+- `R` 重新开始
+- `←→` 左右移动 / `↑` 旋转 / `↓` 软降 / `Space` 硬降（手动模式）
+- `Esc` 退出（Python 版）
 
-The bot evaluates all legal placements for the current piece and chooses the
-best board state using line clears, stack height, holes, bumpiness, and wells.
+---
+
+## 🏎️ 3. F1 像素赛车
+
+- **文件**：`f1-racing.html`
+- **画布**：320×240 像素 → 响应式放大至全屏
+
+### 核心特性
+- **赛道生成**：多正弦波叠加 + S 弯调制
+- **物理引擎**：加速/刹车/摩擦/离心力/碰撞
+- **AI 系统**：5 辆对手车，各有 skill 参数、攻防策略
+- **尾流效应 (Drafting)**：跟车获得加速
+- **音频系统**：Web Audio API 引擎声浪 + 碰撞/圈速/冲线音效
+- **HUD**：速度表、挡位指示、Boost 条、转速灯、圈数、排名
+- **完整赛制**：3 圈决胜，含倒计时 + 冲线画面
+
+### 操作
+- `↑` 加速 / `↓` 刹车
+- `←→` 转向
+- `Space` 氮气加速（需管理 Boost）
+- `P` 暂停
+
+---
+
+## 🏠 4. 小屋建造动画
+
+### 文件
+| 版本 | 文件 | 特点 |
+|------|------|------|
+| Canvas 版 | `cabin.html` | 纯 Canvas 2D 渲染 |
+| 对比版 | `cabin-pixi.html` | Canvas 2D + PixiJS (GPU) 双引擎实时对比 |
+
+### 建造流程（7 阶段动画）
+1. 🏗️ 地基施工 → 2. 🧱 墙体框架 → 3. 🧱 墙面填充 → 4. 🔴 红瓦屋顶 → 5. 🚪 安装大门 → 6. 🪟 安装窗户 → 7. ✨ 最后点缀
+
+### 交互元素
+- **昼夜循环**：太阳轨迹、天空颜色渐变、阴影变化
+- **飘动的云**：6 朵云缓慢漂移
+- **蝴蝶**：3 只彩色蝴蝶围绕小屋飞舞
+- **小狗**：追逐蝴蝶，摇尾巴，吐舌头
+- **烟囱冒烟**：粒子系统模拟烟雾
+- **重播按钮**：一键重播建造过程
+
+---
+
+## 📐 5. 傅里叶级数可视化
+
+- **文件**：`fourier.html`
+- **技术**：Canvas 2D + PixiJS (WebGL) 双引擎并排对比
+
+### 原理
+1. 生成五角星路径（256 个采样点）
+2. 通过 **DFT（离散傅里叶变换）** 计算各谐波分量
+3. 按振幅降序排列，用 **谐波圆 (Epicycle)** 逐步绘制
+
+### 交互控制
+- 调节**谐波数**（1~100），观察路径拟合精度变化
+- 调节**动画速度**
+
+---
+
+## 📅 6. 日历应用 (Nexus)
+
+- **文件**：`calendar.html`
+- **品牌**：Nexus（与 login.html 统一风格）
+
+### 功能
+- 月视图日历网格
+- 侧边栏迷你日历导航
+- 事件 CRUD（创建/编辑/删除）
+- 4 色事件标签（粉/绿/黄/蓝）
+- 模态表单创建事件
+- 今日高亮、月份切换
+
+---
+
+## 📋 7. 看板应用 (TaskFlow Pro)
+
+- **文件**：`kanban.html`
+- **单页应用**，localStorage 持久化
+
+### 功能
+| 功能 | 说明 |
+|------|------|
+| 四列看板 | 待办池 → 待处理 → 进行中 → 已完成 |
+| 拖拽排序 | 鼠标拖拽卡片切换列状态 |
+| 搜索过滤 | 实时搜索标题/描述/标签 |
+| 任务 CRUD | 增删改查，含标题/描述/优先级/日期/标签/子任务 |
+| 子任务 | 添加/勾选/删除，进度条显示 |
+| 详情面板 | 右侧滑出面板展示任务完整信息 |
+| 主题切换 | 亮色/暗色主题 |
+| 数据导出 | JSON 格式备份与恢复 |
+| 键盘快捷键 | `⌘N` 新建 / `⌘K` 搜索 / `⌘T` 切换主题 |
+| Toast 通知 | 操作反馈 + 撤销删除 |
+
+---
+
+## 🔐 8. 登录页面 (Nexus)
+
+- **文件**：`login.html`
+- **品牌**：Nexus（与日历应用统一风格）
+
+### 特性
+- 动画网格背景 + 浮动光晕效果
+- 邮箱/密码表单（含图标）
+- 密码显示/隐藏切换
+- "记住我" 复选框
+- Google / GitHub 社交登录按钮
+- 表单验证 + 错误提示
+- 水波纹按钮点击效果
+- 登录成功模拟动画
+
+---
+
+## 🔧 技术栈总结
+
+| 技术 | 用途 |
+|------|------|
+| **Canvas 2D** | 所有 Web 游戏和动画的渲染引擎 |
+| **PixiJS (WebGL)** | 傅里叶可视化 + 小屋动画 (GPU 加速对比) |
+| **Pygame** | Python 版俄罗斯方块 |
+| **Web Audio API** | F1 赛车的引擎声和音效 |
+| **CSS 变量** | 看板应用的主题切换系统 |
+| **localStorage** | 看板应用的数据持久化 |
+| **DFT 算法** | 傅里叶级数可视化中的频谱计算 |
+| **BFS 算法** | 贪吃蛇 AI 寻路 |
+| **启发式搜索** | 俄罗斯方块 Bot 评分系统 |
+| **伪 3D 投影** | F1 赛车的赛道渲染 |
+
+---
+
+## 📄 许可证
+
+本项目仅供学习和参考。
