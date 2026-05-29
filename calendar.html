@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日历 - Nexus</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #09090b;
+      --bg-secondary: #18181b;
+      --bg-tertiary: #27272a;
+      --bg-card: rgba(255, 255, 255, 0.02);
+      --bg-hover: rgba(255, 255, 255, 0.05);
+      --bg-active: rgba(255, 255, 255, 0.08);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 255, 255, 0.15);
+      --text-primary: #fafafa;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --accent-light: rgba(99, 102, 241, 0.15);
+      --accent-glow: rgba(99, 102, 241, 0.3);
+      --today-bg: #6366f1;
+      --today-text: #fff;
+      --event-1: #f472b6;
+      --event-2: #34d399;
+      --event-3: #fbbf24;
+      --event-4: #60a5fa;
+      --weekend: #ef4444;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 280px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .sidebar-logo {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sidebar-logo svg {
+      width: 20px;
+      height: 20px;
+      fill: white;
+    }
+
+    .sidebar-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .mini-calendar {
+      background: var(--bg-tertiary);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+
+    .mini-calendar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .mini-calendar-month {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .mini-calendar-nav {
+      display: flex;
+      gap: 4px;
+    }
+
+    .mini-calendar-nav button {
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .mini-calendar-nav button:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .mini-calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+
+    .mini-day-name {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 4px 0;
+    }
+
+    .mini-day {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-align: center;
+      padding: 6px 2px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .mini-day:hover {
+      background: var(--bg-hover);
+    }
+
+    .mini-day.other-month {
+      color: var(--text-muted);
+      opacity: 0.4;
+    }
+
+    .mini-day.today {
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+
+    .mini-day.selected {
+      background: var(--accent-light);
+    }
+
+    .mini-day.has-event::after {
+      content: '';
+      display: block;
+      width: 4px;
+      height: 4px;
+      background: var(--event-1);
+      border-radius: 50%;
+      margin: 2px auto 0;
+    }
+
+    .events-section {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .events-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .events-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .add-event-btn {
+      width: 24px;
+      height: 24px;
+      border: 1px dashed var(--border-color);
+      background: transparent;
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .add-event-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    .event-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg-tertiary);
+      border-radius: 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 1px solid transparent;
+    }
+
+    .event-item:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-hover);
+    }
+
+    .event-color {
+      width: 4px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .event-color.pink { background: var(--event-1); }
+    .event-color.green { background: var(--event-2); }
+    .event-color.yellow { background: var(--event-3); }
+    .event-color.blue { background: var(--event-4); }
+
+    .event-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .event-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .event-time {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Main Content */
+    .main {
+      margin-left: 280px;
+      padding: 32px 48px;
+      min-height: 100vh;
+    }
+
+    .calendar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    .calendar-nav {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .calendar-nav button {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border-color);
+      background: transparent;
+      border-radius: 10px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .calendar-nav button:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-hover);
+      color: var(--text-primary);
+    }
+
+    .calendar-nav button.today-btn {
+      width: auto;
+      padding: 0 16px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .calendar-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 32px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
+
+    .calendar-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      padding: 10px 16px;
+      border: 1px solid var(--border-color);
+      background: transparent;
+      border-radius: 10px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .action-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-hover);
+      color: var(--text-primary);
+    }
+
+    .action-btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .action-btn.primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    .action-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Calendar Grid */
+    .calendar-container {
+      background: var(--bg-secondary);
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+    }
+
+    .calendar-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .weekday {
+      padding: 16px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .weekday.weekend {
+      color: var(--weekend);
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+
+    .calendar-day {
+      min-height: 120px;
+      padding: 12px;
+      border-right: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: background 0.15s;
+      position: relative;
+    }
+
+    .calendar-day:nth-child(7n) {
+      border-right: none;
+    }
+
+    .calendar-day:hover {
+      background: var(--bg-hover);
+    }
+
+    .calendar-day.other-month {
+      opacity: 0.4;
+    }
+
+    .calendar-day.today .day-number {
+      background: var(--today-bg);
+      color: var(--today-text);
+    }
+
+    .calendar-day.selected {
+      background: var(--accent-light);
+    }
+
+    .day-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .day-number {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: 10px;
+      transition: all 0.15s;
+    }
+
+    .calendar-day.today .day-number {
+      background: var(--today-bg);
+      color: var(--today-text);
+    }
+
+    .day-number.weekend {
+      color: var(--weekend);
+    }
+
+    .more-events {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .day-events {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .day-event {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .day-event:hover {
+      transform: translateX(2px);
+    }
+
+    .day-event.pink {
+      background: rgba(244, 114, 182, 0.15);
+      color: var(--event-1);
+    }
+
+    .day-event.green {
+      background: rgba(52, 211, 153, 0.15);
+      color: var(--event-2);
+    }
+
+    .day-event.yellow {
+      background: rgba(251, 191, 36, 0.15);
+      color: var(--event-3);
+    }
+
+    .day-event.blue {
+      background: rgba(96, 165, 250, 0.15);
+      color: var(--event-4);
+    }
+
+    /* View Toggle */
+    .view-toggle {
+      display: flex;
+      background: var(--bg-tertiary);
+      border-radius: 10px;
+      padding: 4px;
+    }
+
+    .view-btn {
+      padding: 8px 16px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .view-btn.active {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .view-btn:hover:not(.active) {
+      color: var(--text-primary);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 480px;
+      padding: 32px;
+      transform: scale(0.95) translateY(10px);
+      transition: transform 0.2s;
+    }
+
+    .modal-overlay.active .modal {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .modal-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .modal-close:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      font-size: 14px;
+      color: var(--text-primary);
+      outline: none;
+      transition: all 0.15s;
+    }
+
+    .form-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .color-picker {
+      display: flex;
+      gap: 8px;
+    }
+
+    .color-option {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .color-option:hover {
+      transform: scale(1.1);
+    }
+
+    .color-option.selected {
+      border-color: white;
+      box-shadow: 0 0 0 2px var(--bg-primary);
+    }
+
+    .color-option.pink { background: var(--event-1); }
+    .color-option.green { background: var(--event-2); }
+    .color-option.yellow { background: var(--event-3); }
+    .color-option.blue { background: var(--event-4); }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .modal-actions .btn {
+      flex: 1;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-hover);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border: none;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <span class="sidebar-title">Nexus</span>
+    </div>
+
+    <div class="mini-calendar">
+      <div class="mini-calendar-header">
+        <span class="mini-calendar-month">四月 2026</span>
+        <div class="mini-calendar-nav">
+          <button>&lt;</button>
+          <button>&gt;</button>
+        </div>
+      </div>
+      <div class="mini-calendar-grid">
+        <span class="mini-day-name">日</span>
+        <span class="mini-day-name">一</span>
+        <span class="mini-day-name">二</span>
+        <span class="mini-day-name">三</span>
+        <span class="mini-day-name">四</span>
+        <span class="mini-day-name">五</span>
+        <span class="mini-day-name">六</span>
+        <span class="mini-day other-month">29</span>
+        <span class="mini-day other-month">30</span>
+        <span class="mini-day">31</span>
+        <span class="mini-day">1</span>
+        <span class="mini-day">2</span>
+        <span class="mini-day">3</span>
+        <span class="mini-day">4</span>
+        <span class="mini-day">5</span>
+        <span class="mini-day">6</span>
+        <span class="mini-day has-event">7</span>
+        <span class="mini-day">8</span>
+        <span class="mini-day">9</span>
+        <span class="mini-day">10</span>
+        <span class="mini-day">11</span>
+        <span class="mini-day">12</span>
+        <span class="mini-day">13</span>
+        <span class="mini-day">14</span>
+        <span class="mini-day">15</span>
+        <span class="mini-day">16</span>
+        <span class="mini-day">17</span>
+        <span class="mini-day today">18</span>
+        <span class="mini-day">19</span>
+        <span class="mini-day">20</span>
+        <span class="mini-day has-event">21</span>
+        <span class="mini-day">22</span>
+        <span class="mini-day">23</span>
+        <span class="mini-day">24</span>
+        <span class="mini-day">25</span>
+      </div>
+    </div>
+
+    <div class="events-section">
+      <div class="events-header">
+        <span class="events-title">即将到来</span>
+        <button class="add-event-btn" onclick="openModal()">+</button>
+      </div>
+
+      <div class="event-item">
+        <div class="event-color pink"></div>
+        <div class="event-content">
+          <div class="event-name">产品评审会议</div>
+          <div class="event-time">今天, 14:00 - 15:30</div>
+        </div>
+      </div>
+
+      <div class="event-item">
+        <div class="event-color green"></div>
+        <div class="event-content">
+          <div class="event-name">代码审查</div>
+          <div class="event-time">今天, 16:00 - 17:00</div>
+        </div>
+      </div>
+
+      <div class="event-item">
+        <div class="event-color yellow"></div>
+        <div class="event-content">
+          <div class="event-name">周会</div>
+          <div class="event-time">明天, 10:00 - 11:00</div>
+        </div>
+      </div>
+
+      <div class="event-item">
+        <div class="event-color blue"></div>
+        <div class="event-content">
+          <div class="event-name">一对一会议</div>
+          <div class="event-time">4月21日, 15:00 - 16:00</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main">
+    <header class="calendar-header">
+      <div class="calendar-nav">
+        <button class="today-btn">今天</button>
+        <button>&lt;</button>
+        <button>&gt;</button>
+        <h1 class="calendar-title">2026年4月</h1>
+      </div>
+      <div class="calendar-actions">
+        <div class="view-toggle">
+          <button class="view-btn active">月</button>
+          <button class="view-btn">周</button>
+          <button class="view-btn">日</button>
+        </div>
+        <button class="action-btn primary" onclick="openModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          新建事件
+        </button>
+      </div>
+    </header>
+
+    <div class="calendar-container">
+      <div class="calendar-weekdays">
+        <div class="weekday weekend">周日</div>
+        <div class="weekday">周一</div>
+        <div class="weekday">周二</div>
+        <div class="weekday">周三</div>
+        <div class="weekday">周四</div>
+        <div class="weekday">周五</div>
+        <div class="weekday weekend">周六</div>
+      </div>
+      <div class="calendar-grid">
+        <!-- Week 1 -->
+        <div class="calendar-day other-month">
+          <div class="day-header">
+            <span class="day-number weekend">29</span>
+          </div>
+        </div>
+        <div class="calendar-day other-month">
+          <div class="day-header">
+            <span class="day-number">30</span>
+          </div>
+        </div>
+        <div class="calendar-day other-month">
+          <div class="day-header">
+            <span class="day-number">31</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">1</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">2</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">3</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number weekend">4</span>
+          </div>
+        </div>
+        <!-- Week 2 -->
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number weekend">5</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">6</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">7</span>
+          </div>
+          <div class="day-events">
+            <div class="day-event pink">产品评审会议</div>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">8</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">9</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">10</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number weekend">11</span>
+          </div>
+        </div>
+        <!-- Week 3 -->
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number weekend">12</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">13</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">14</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">15</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">16</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">17</span>
+          </div>
+        </div>
+        <div class="calendar-day today selected">
+          <div class="day-header">
+            <span class="day-number">18</span>
+          </div>
+          <div class="day-events">
+            <div class="day-event pink">产品评审会议</div>
+            <div class="day-event green">代码审查</div>
+          </div>
+        </div>
+        <!-- Week 4 -->
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number weekend">19</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">20</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">21</span>
+          </div>
+          <div class="day-events">
+            <div class="day-event yellow">周会</div>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">22</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">23</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">24</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number weekend">25</span>
+          </div>
+        </div>
+        <!-- Week 5 -->
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number weekend">26</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">27</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">28</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">29</span>
+          </div>
+        </div>
+        <div class="calendar-day">
+          <div class="day-header">
+            <span class="day-number">30</span>
+          </div>
+        </div>
+        <div class="calendar-day other-month">
+          <div class="day-header">
+            <span class="day-number">1</span>
+          </div>
+        </div>
+        <div class="calendar-day other-month">
+          <div class="day-header">
+            <span class="day-number weekend">2</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Event Modal -->
+  <div class="modal-overlay" id="eventModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">新建事件</h2>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <form id="eventForm">
+        <div class="form-group">
+          <label class="form-label">事件名称</label>
+          <input type="text" class="form-input" placeholder="输入事件名称" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">开始时间</label>
+            <input type="datetime-local" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">结束时间</label>
+            <input type="datetime-local" class="form-input" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">颜色</label>
+          <div class="color-picker">
+            <div class="color-option pink selected" data-color="pink"></div>
+            <div class="color-option green" data-color="green"></div>
+            <div class="color-option yellow" data-color="yellow"></div>
+            <div class="color-option blue" data-color="blue"></div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+          <button type="submit" class="btn btn-primary">创建</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function openModal() {
+      document.getElementById('eventModal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('eventModal').classList.remove('active');
+    }
+
+    document.getElementById('eventModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeModal();
+      }
+    });
+
+    document.querySelectorAll('.color-option').forEach(option => {
+      option.addEventListener('click', function() {
+        document.querySelectorAll('.color-option').forEach(o => o.classList.remove('selected'));
+        this.classList.add('selected');
+      });
+    });
+
+    document.getElementById('eventForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      alert('事件创建成功！');
+      closeModal();
+    });
+  </script>
+</body>
+</html>

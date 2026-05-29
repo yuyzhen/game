@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - Nexus</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-card: rgba(255, 255, 255, 0.03);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 255, 255, 0.15);
+      --text-primary: #f5f5f7;
+      --text-secondary: #86868b;
+      --text-muted: #6e6e73;
+      --accent: #5e6ad2;
+      --accent-hover: #6b75d4;
+      --accent-glow: rgba(94, 106, 210, 0.3);
+      --error: #ff453a;
+      --success: #30d158;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Animated background */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 60px 60px;
+      animation: gridMove 20s linear infinite;
+    }
+
+    @keyframes gridMove {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(60px, 60px); }
+    }
+
+    .bg-gradient {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(94, 106, 210, 0.15), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(139, 92, 246, 0.1), transparent);
+    }
+
+    /* Floating orbs */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      animation: float 8s ease-in-out infinite;
+    }
+
+    .orb-1 {
+      width: 400px;
+      height: 400px;
+      background: rgba(94, 106, 210, 0.2);
+      top: -100px;
+      right: -100px;
+      animation-delay: 0s;
+    }
+
+    .orb-2 {
+      width: 300px;
+      height: 300px;
+      background: rgba(139, 92, 246, 0.15);
+      bottom: -50px;
+      left: -50px;
+      animation-delay: -4s;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(-20px, 20px) scale(1.05); }
+    }
+
+    .container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 420px;
+      padding: 0 24px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 48px 40px;
+      backdrop-filter: blur(20px);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.05) inset,
+        0 20px 50px -10px rgba(0, 0, 0, 0.5),
+        0 0 100px -50px rgba(94, 106, 210, 0.2);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-icon svg {
+      width: 24px;
+      height: 24px;
+      fill: white;
+    }
+
+    .logo-text {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 36px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
+
+    .input-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 14px 16px 14px 48px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      font-size: 15px;
+      color: var(--text-primary);
+      transition: all 0.2s;
+      outline: none;
+    }
+
+    .form-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .form-input:hover {
+      border-color: var(--border-hover);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .form-input:focus {
+      border-color: var(--accent);
+      background: rgba(94, 106, 210, 0.05);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .form-input:focus + .input-icon,
+    .form-input:focus ~ .input-icon {
+      color: var(--accent);
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      transition: color 0.2s;
+    }
+
+    .password-toggle:hover {
+      color: var(--text-secondary);
+    }
+
+    .password-toggle svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .form-options {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+    }
+
+    .checkbox-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+
+    .checkbox {
+      width: 18px;
+      height: 18px;
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      background: transparent;
+      appearance: none;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .checkbox:checked {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .checkbox:checked::after {
+      content: '';
+      position: absolute;
+      left: 5px;
+      top: 2px;
+      width: 5px;
+      height: 9px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    .checkbox-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      user-select: none;
+    }
+
+    .forgot-link {
+      font-size: 13px;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .forgot-link:hover {
+      color: var(--accent-hover);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #7c5cd9);
+      color: white;
+      box-shadow: 0 4px 20px -4px var(--accent-glow);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px -4px var(--accent-glow);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent, rgba(255,255,255,0.1));
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .btn-primary:hover::after {
+      opacity: 1;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 28px 0;
+    }
+
+    .divider-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border-color);
+    }
+
+    .divider-text {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .social-btns {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn-social {
+      flex: 1;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .btn-social:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--border-hover);
+      color: var(--text-primary);
+    }
+
+    .btn-social svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .signup-link {
+      text-align: center;
+      margin-top: 28px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .signup-link a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .signup-link a:hover {
+      text-decoration: underline;
+    }
+
+    /* Error state */
+    .form-input.error {
+      border-color: var(--error);
+    }
+
+    .error-message {
+      font-size: 12px;
+      color: var(--error);
+      margin-top: 6px;
+      display: none;
+    }
+
+    .form-group.has-error .error-message {
+      display: block;
+    }
+
+    /* Ripple effect */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(0);
+      animation: ripple 0.6s linear;
+      pointer-events: none;
+    }
+
+    @keyframes ripple {
+      to {
+        transform: scale(4);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-gradient"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="container">
+    <div class="card">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <span class="logo-text">Nexus</span>
+      </div>
+
+      <h1 class="title">欢迎回来</h1>
+      <p class="subtitle">请登录您的账户以继续</p>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label class="form-label">邮箱</label>
+          <div class="input-wrapper">
+            <input
+              type="email"
+              class="form-input"
+              id="email"
+              placeholder="name@company.com"
+              required
+            >
+            <span class="input-icon">
+              <svg viewBox="0 0 24 24">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+            </span>
+          </div>
+          <span class="error-message">请输入有效的邮箱地址</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">密码</label>
+          <div class="input-wrapper">
+            <input
+              type="password"
+              class="form-input"
+              id="password"
+              placeholder="输入密码"
+              required
+            >
+            <span class="input-icon">
+              <svg viewBox="0 0 24 24">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </span>
+            <button type="button" class="password-toggle" onclick="togglePassword()">
+              <svg class="eye-open" viewBox="0 0 24 24">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg class="eye-closed" viewBox="0 0 24 24" style="display:none">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            </button>
+          </div>
+          <span class="error-message">密码不能为空</span>
+        </div>
+
+        <div class="form-options">
+          <label class="checkbox-wrapper">
+            <input type="checkbox" class="checkbox" id="remember">
+            <span class="checkbox-label">记住我</span>
+          </label>
+          <a href="#" class="forgot-link">忘记密码？</a>
+        </div>
+
+        <button type="submit" class="btn btn-primary">登 录</button>
+
+        <div class="divider">
+          <span class="divider-line"></span>
+          <span class="divider-text">或</span>
+          <span class="divider-line"></span>
+        </div>
+
+        <div class="social-btns">
+          <button type="button" class="btn-social">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Google
+          </button>
+          <button type="button" class="btn-social">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+            </svg>
+            GitHub
+          </button>
+        </div>
+
+        <p class="signup-link">
+          还没有账户？<a href="#">立即注册</a>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function togglePassword() {
+      const passwordInput = document.getElementById('password');
+      const eyeOpen = document.querySelector('.eye-open');
+      const eyeClosed = document.querySelector('.eye-closed');
+
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        eyeOpen.style.display = 'none';
+        eyeClosed.style.display = 'block';
+      } else {
+        passwordInput.type = 'password';
+        eyeOpen.style.display = 'block';
+        eyeClosed.style.display = 'none';
+      }
+    }
+
+    // Form submission
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const email = document.getElementById('email');
+      const password = document.getElementById('password');
+      const emailGroup = email.closest('.form-group');
+      const passwordGroup = password.closest('.form-group');
+
+      // Reset errors
+      emailGroup.classList.remove('has-error');
+      passwordGroup.classList.remove('has-error');
+      email.classList.remove('error');
+      password.classList.remove('error');
+
+      // Validate
+      let hasError = false;
+
+      if (!email.value || !email.value.includes('@')) {
+        emailGroup.classList.add('has-error');
+        email.classList.add('error');
+        hasError = true;
+      }
+
+      if (!password.value) {
+        passwordGroup.classList.add('has-error');
+        password.classList.add('error');
+        hasError = true;
+      }
+
+      if (!hasError) {
+        // Simulate login success
+        const btn = this.querySelector('.btn-primary');
+        btn.textContent = '登录中...';
+        btn.style.opacity = '0.7';
+
+        setTimeout(() => {
+          btn.textContent = '登录成功 ✓';
+          btn.style.background = 'linear-gradient(135deg, #30d158, #28a745)';
+        }, 1000);
+      }
+    });
+
+    // Add ripple effect to button
+    document.querySelector('.btn-primary').addEventListener('click', function(e) {
+      const ripple = document.createElement('span');
+      ripple.classList.add('ripple');
+      const rect = this.getBoundingClientRect();
+      ripple.style.left = (e.clientX - rect.left) + 'px';
+      ripple.style.top = (e.clientY - rect.top) + 'px';
+      this.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 600);
+    });
+  </script>
+</body>
+</html>
