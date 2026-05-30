@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BSC 钱包资产分析</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #0b0e1a 0%, #1a1e2f 50%, #0f1929 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        /* ===== Header ===== */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 28px;
+            padding-top: 10px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #f0b90b, #f8d44a);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 18px;
+            color: #1a1e2f;
+        }
+
+        .logo h1 {
+            color: #fff;
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        .logo span { color: #f0b90b; }
+
+        .header-badge {
+            padding: 6px 14px;
+            background: rgba(240, 185, 11, 0.12);
+            border: 1px solid rgba(240, 185, 11, 0.2);
+            border-radius: 20px;
+            color: #f0b90b;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* ===== Search ===== */
+        .search-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-row input {
+            flex: 1;
+            padding: 14px 18px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.2s;
+            font-family: 'Courier New', monospace;
+        }
+
+        .search-row input::placeholder {
+            color: rgba(255, 255, 255, 0.25);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .search-row input:focus {
+            border-color: #f0b90b;
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 3px rgba(240, 185, 11, 0.15);
+        }
+
+        .search-row button {
+            padding: 14px 28px;
+            border-radius: 14px;
+            border: none;
+            background: linear-gradient(135deg, #f0b90b, #f8d44a);
+            color: #0b0e1a;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .search-row button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(240, 185, 11, 0.3);
+        }
+
+        .search-row button:active { transform: translateY(0); }
+        .search-row button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* ===== Status ===== */
+        .status-bar {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            margin-top: 12px;
+        }
+
+        .status-bar.show { display: flex; }
+
+        .status-bar.info {
+            background: rgba(240, 185, 11, 0.1);
+            border: 1px solid rgba(240, 185, 11, 0.2);
+            color: #f0b90b;
+        }
+
+        .status-bar.success {
+            background: rgba(75, 181, 67, 0.1);
+            border: 1px solid rgba(75, 181, 67, 0.2);
+            color: #4bb543;
+        }
+
+        .status-bar.error {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+        }
+
+        .status-bar .dot {
+            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+        }
+        .status-bar.info .dot { background: #f0b90b; }
+        .status-bar.success .dot { background: #4bb543; }
+        .status-bar.error .dot { background: #ff6b6b; }
+
+        /* ===== Portfolio Total ===== */
+        .total-card {
+            background: linear-gradient(135deg, rgba(240, 185, 11, 0.08), rgba(240, 185, 11, 0.02));
+            border: 1px solid rgba(240, 185, 11, 0.15);
+            border-radius: 20px;
+            padding: 28px 32px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .total-card.show { display: block; }
+
+        .total-label {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 6px;
+        }
+
+        .total-value {
+            font-size: 44px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -1px;
+        }
+
+        .total-value .currency {
+            color: #f0b90b;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .total-address {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        .total-count {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 13px;
+            margin-top: 2px;
+        }
+
+        /* ===== Token List ===== */
+        .token-list {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .token-list.show { display: flex; }
+
+        .token-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            padding: 16px 20px;
+            transition: all 0.2s;
+        }
+
+        .token-item:hover {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .token-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .token-icon img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .token-icon .fallback {
+            font-weight: 700;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .token-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .token-name {
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .token-balance {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 13px;
+            margin-top: 2px;
+        }
+
+        .token-value {
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .token-value .usd {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .token-value .price {
+            color: rgba(255, 255, 255, 0.35);
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .token-value .empty-value {
+            color: rgba(255, 255, 255, 0.15);
+            font-size: 14px;
+        }
+
+        /* ===== Empty / Loading ===== */
+        .empty-state {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            padding: 60px 20px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(240, 185, 11, 0.15);
+            border-top-color: #f0b90b;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px auto;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .progress-text {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 13px;
+            text-align: center;
+            margin: 8px 0;
+        }
+
+        /* ===== Footer ===== */
+        .footer {
+            text-align: center;
+            margin-top: 24px;
+            color: rgba(255, 255, 255, 0.1);
+            font-size: 12px;
+            padding-bottom: 30px;
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 600px) {
+            .container { padding: 0; }
+            .header { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .total-value { font-size: 34px; }
+            .search-row { flex-direction: column; }
+            .search-row button { width: 100%; }
+            .token-item { padding: 14px 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">B</div>
+                <h1>BSC <span>Portfolio</span></h1>
+            </div>
+            <div class="header-badge">BNB Smart Chain</div>
+        </div>
+
+        <!-- Search -->
+        <div class="search-card">
+            <div class="search-row">
+                <input
+                    type="text"
+                    id="addressInput"
+                    placeholder="输入钱包地址 (0x...)"
+                    spellcheck="false"
+                />
+                <button id="queryBtn" onclick="startQuery()">查询</button>
+            </div>
+            <div id="statusBar" class="status-bar">
+                <span class="dot"></span>
+                <span id="statusText"></span>
+            </div>
+        </div>
+
+        <!-- Custom Token Input -->
+        <div class="search-card" style="margin-bottom:12px;padding:16px 20px;">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <span style="color:rgba(255,255,255,0.4);font-size:13px;white-space:nowrap;">自定义代币</span>
+                <input type="text" id="customTokenInput"
+                    placeholder="粘贴代币合约地址 (0x...)"
+                    style="flex:1;min-width:150px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:#fff;font-size:13px;outline:none;font-family:monospace;">
+                <button onclick="addCustomToken()" style="padding:10px 16px;border-radius:10px;border:none;background:rgba(240,185,11,0.15);color:#f0b90b;font-size:13px;cursor:pointer;white-space:nowrap;">添加</button>
+            </div>
+            <div id="customTokensList" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
+
+        <!-- Total Portfolio Value -->
+        <div class="total-card" id="totalCard">
+            <div class="total-label">总资产价值</div>
+            <div class="total-value">
+                $<span id="totalUsd">0.00</span>
+                <span class="currency">USDT</span>
+            </div>
+            <div class="total-address" id="totalAddress">0x...</div>
+            <div class="total-count" id="totalCount">持有 0 种资产</div>
+        </div>
+
+        <!-- Loading -->
+        <div class="empty-state" id="loadingState">
+            <div class="spinner"></div>
+            <div id="loadingText">正在查询...</div>
+        </div>
+
+        <!-- Token List -->
+        <div class="token-list" id="tokenList"></div>
+
+        <!-- Empty Hint -->
+        <div class="empty-state" id="emptyHint">
+            输入钱包地址，查询 BSC 上所有主流资产<br/>按 USDT 计价
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            价格来源: Binance API &nbsp;·&nbsp; 链上数据: BSC RPC
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        //  BSC 主流代币列表
+        // ============================================================
+        const TOKENS = [
+            // ===== 原生币 =====
+            { symbol: "BNB",    name: "BNB",               address: null,          decimals: 18, binancePair: "BNBUSDT" },
+
+            // ===== 稳定币 =====
+            { symbol: "USDT",   name: "USDT",              address: "0x55d398326f99059fF775485246999027B3197955", decimals: 18, binancePair: "USDTUSDT", isStable: true },
+            { symbol: "USDC",   name: "USD Coin",          address: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", decimals: 18, binancePair: "USDCUSDT", isStable: true },
+            { symbol: "FDUSD",  name: "FDUSD",             address: "0xc5f0f7b66764F6ec8C8Dff7BA683102295E16409", decimals: 18, binancePair: "FDUSDUSDT", isStable: true },
+            { symbol: "DAI",    name: "Dai",               address: "0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3", decimals: 18, binancePair: "DAIUSDT", isStable: true },
+            { symbol: "BUSD",   name: "Binance USD",       address: "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56", decimals: 18, binancePair: "BUSDUSDT", isStable: true },
+
+            // ===== 主流资产 =====
+            { symbol: "BTCB",   name: "Bitcoin (BSC)",     address: "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c", decimals: 18, binancePair: "BTCUSDT" },
+            { symbol: "ETH",    name: "Ethereum",          address: "0x2170Ed0880ac9A755fd29B2688956BD959F933F8", decimals: 18, binancePair: "ETHUSDT" },
+            { symbol: "XRP",    name: "XRP",               address: "0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE", decimals: 18, binancePair: "XRPUSDT" },
+            { symbol: "ADA",    name: "Cardano",           address: "0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47", decimals: 18, binancePair: "ADAUSDT" },
+            { symbol: "DOGE",   name: "Dogecoin",          address: "0xbA2aE424d960c26247Dd6c32edC70B295c744C43", decimals: 8,  binancePair: "DOGEUSDT" },
+            { symbol: "DOT",    name: "Polkadot",          address: "0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402", decimals: 18, binancePair: "DOTUSDT" },
+            { symbol: "SOL",    name: "Solana (BSC)",      address: "0x570A5D26f7765Ecb712C0924E4De545B89fD43dF", decimals: 18, binancePair: "SOLUSDT" },
+            { symbol: "MATIC",  name: "Polygon",           address: "0xCC42724C6683B7E57334c4E856f4c9965ED682bD", decimals: 18, binancePair: "MATICUSDT" },
+            { symbol: "TRX",    name: "TRON",              address: "0xCE7de646e7208a4Ef112cb6ed5038FA6cC6b12e3", decimals: 18, binancePair: "TRXUSDT" },
+            { symbol: "LINK",   name: "Chainlink",         address: "0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD", decimals: 18, binancePair: "LINKUSDT" },
+            { symbol: "ATOM",   name: "Cosmos",            address: "0x0Eb3a705fc54725037CC9e008bDede697f62F335", decimals: 18, binancePair: "ATOMUSDT" },
+            { symbol: "LTC",    name: "Litecoin",          address: "0x4338665CBB7B2485A8855A139b75D5e34AB0DB94", decimals: 18, binancePair: "LTCUSDT" },
+            { symbol: "BCH",    name: "Bitcoin Cash",      address: "0x8fF795a6F4D97E7887C79be90279C5EB3A6bBcc9", decimals: 18, binancePair: "BCHUSDT" },
+            { symbol: "UNI",    name: "Uniswap",           address: "0xBf5140A22578168FD562DCcF235E5D43A02ce9B1", decimals: 18, binancePair: "UNIUSDT" },
+            { symbol: "SHIB",   name: "Shiba Inu",         address: "0x2859e4544C4bB03966803b044A93563Bd2D0DD4D", decimals: 18, binancePair: "SHIBUSDT" },
+            { symbol: "NEAR",   name: "NEAR Protocol",     address: "0x1Fa4a73a3F0133f0025378af00236f3aBDEE5D63", decimals: 18, binancePair: "NEARUSDT" },
+            { symbol: "APT",    name: "Aptos",             address: "0xb7b60dE5B7Bf2B0Cb34Ee7C4E14F84cC58c0095f", decimals: 18, binancePair: "APTUSDT" },
+            { symbol: "ARB",    name: "Arbitrum",          address: "0xa0502d0Ed6cE76D9861f06b40EB0aE16D94F57Df", decimals: 18, binancePair: "ARBUSDT" },
+            { symbol: "AVAX",   name: "Avalanche",         address: "0x1CE0c2827e2eF14D5C4f29a091d735A204794041", decimals: 18, binancePair: "AVAXUSDT" },
+            { symbol: "FIL",    name: "Filecoin",          address: "0x0D8Ce2A99Bb6e3B7Db580eD848240e4a0F72aE57", decimals: 18, binancePair: "FILUSDT" },
+
+            // ===== BSC 原生热门 =====
+            { symbol: "CAKE",   name: "PancakeSwap",       address: "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82", decimals: 18, binancePair: "CAKEUSDT" },
+            { symbol: "WBNB",   name: "Wrapped BNB",       address: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", decimals: 18, binancePair: "BNBUSDT" },
+            // ===== Meme 币 =====
+            { symbol: "FLOKI",  name: "Floki",             address: "0xfb5B838b6cfEe6c7Ae7E7e7e7e7e7e7e7e7e7e7f", decimals: 18, binancePair: "FLOKIUSDT" },
+            { symbol: "BABYDOGE",name: "Baby Doge",        address: "0xc748673057861a797275CD8A068AbB95A902e8de", decimals: 9,  binancePair: "BABYDOGEUSDT" },
+            { symbol: "PEPE",   name: "Pepe",              address: "0x25d887Ce7a35172C62FeBFD67a1856F20FaEbB00", decimals: 18, binancePair: "PEPEUSDT" },
+            { symbol: "SAMO",   name: "Samoyed Coin",      address: "0xaD90c05cF5165eB0fb19Dc59eAa1B0F7DFfD64d0", decimals: 9,  binancePair: "SAMOUSDT" },
+            // 自定义代币(用户添加的)
+            { symbol: "UNKN",   name: "Custom Token",      address: "0xE747E54783Ba3F77a8E5251a3cBA19EBe9C0E197", decimals: 18, binancePair: "UNKNUSDT" },
+        ];
+
+        // 稳定币 symbol 集合，用于价格获取特殊处理
+        const STABLE_SYMBOLS = new Set(["USDT", "USDC", "FDUSD", "DAI", "BUSD"]);
+
+        // ============================================================
+        //  BSC RPC 节点（容灾）
+        // ============================================================
+        const RPC_NODES = [
+            "https://bsc-dataseed1.binance.org/",
+            "https://bsc-dataseed2.binance.org/",
+            "https://bsc-dataseed3.binance.org/",
+            "https://bsc-dataseed4.binance.org/",
+            "https://bsc-dataseed1.defibit.io/",
+            "https://bsc-dataseed2.defibit.io/",
+        ];
+        let currentRpcIndex = 0;
+
+        // ============================================================
+        //  DOM Helpers
+        // ============================================================
+        const $ = id => document.getElementById(id);
+
+        function show(id)  {
+            const el = $(id);
+            el.style.display = '';
+            el.classList.add('show');
+        }
+        function hide(id) {
+            const el = $(id);
+            el.style.display = 'none';
+            el.classList.remove('show');
+        }
+
+        function setStatus(text, type) {
+            const bar = $("statusBar");
+            bar.className = "status-bar show " + (type || "info");
+            $("statusText").textContent = text;
+        }
+
+        function hideStatus() { $("statusBar").className = "status-bar"; }
+
+        // ============================================================
+        //  JSON-RPC 调用（带容灾）
+        // ============================================================
+        async function jsonRpcCall(rpcUrl, method, params) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 6000);
+            try {
+                const resp = await fetch(rpcUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ jsonrpc: "2.0", method, params, id: Date.now() }),
+                    signal: controller.signal,
+                });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+                if (data.error) throw new Error(data.error.message || "RPC 请求失败");
+                return data;
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
+
+        async function rpc(method, params) {
+            const start = currentRpcIndex;
+            let lastErr = null;
+            for (let i = 0; i < RPC_NODES.length; i++) {
+                const idx = (start + i) % RPC_NODES.length;
+                try {
+                    const result = await jsonRpcCall(RPC_NODES[idx], method, params);
+                    currentRpcIndex = idx;
+                    return result;
+                } catch (e) {
+                    lastErr = e;
+                    continue;
+                }
+            }
+            throw new Error(`RPC 不可用: ${lastErr?.message || "未知错误"}`);
+        }
+
+        // ============================================================
+        //  链上查询（JSON-RPC 批量查询优化）
+        // ============================================================
+
+        // 查询原生 BNB 余额
+        async function getNativeBalance(address) {
+            const data = await rpc("eth_getBalance", [address, "latest"]);
+            return BigInt(data.result);
+        }
+
+        /**
+         * 批量查询所有 Token 余额（一次性发送所有 eth_call，大幅减少 RPC 交互次数）
+         */
+        async function batchQueryBalances(tokens, walletAddress) {
+            const addrLower = walletAddress.slice(2).toLowerCase();
+
+            // 构建批量请求数组
+            const batchRequests = tokens.map((token, idx) => {
+                // balanceOf(address) = 0x70a08231
+                const calldata = "0x70a08231" + addrLower.padStart(64, "0");
+                return {
+                    jsonrpc: "2.0",
+                    method: "eth_call",
+                    params: [{
+                        to: token.address.toLowerCase(),
+                        data: calldata,
+                    }, "latest"],
+                    id: idx + 100, // 避免 ID 冲突
+                };
+            });
+
+            // 通过第一个可用 RPC 节点发送批量请求
+            const rpcUrl = RPC_NODES[currentRpcIndex % RPC_NODES.length];
+
+            let responses;
+            try {
+                const controller = new AbortController();
+                const tid = setTimeout(() => controller.abort(), 30000); // 30s 总超时
+                const resp = await fetch(rpcUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(batchRequests),
+                    signal: controller.signal,
+                });
+                clearTimeout(tid);
+
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                responses = await resp.json();
+            } catch (e) {
+                console.warn("[batch] 批量 RPC 失败, 回退到逐个查询:", e.message);
+                // 回退：逐个查询
+                return fallbackQueryBalances(tokens, walletAddress);
+            }
+
+            // 确保 responses 是数组
+            if (!Array.isArray(responses)) {
+                console.warn("[batch] 返回格式异常, 回退到逐个查询:", responses);
+                return fallbackQueryBalances(tokens, walletAddress);
+            }
+
+            // 解析每个响应
+            const results = {};
+            for (const res of responses) {
+                const idx = res.id - 100;
+                const token = tokens[idx];
+                if (!token) continue;
+
+                if (res.error) {
+                    console.warn(`[batch] ${token.symbol} 查询错误:`, res.error.message);
+                    results[token.symbol] = 0n;
+                    continue;
+                }
+
+                const hex = res.result;
+                if (!hex || hex === "0x" || hex === "0x0") {
+                    results[token.symbol] = 0n;
+                } else {
+                    try {
+                        results[token.symbol] = BigInt(hex);
+                    } catch (e) {
+                        console.warn(`[batch] ${token.symbol} BigInt 解析失败:`, hex);
+                        results[token.symbol] = 0n;
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        /**
+         * 逐个查询 Token 余额（回退方案）
+         */
+        async function fallbackQueryBalances(tokens, walletAddress) {
+            const addrLower = walletAddress.slice(2).toLowerCase();
+            const results = {};
+
+            for (let i = 0; i < tokens.length; i++) {
+                const token = tokens[i];
+                const calldata = "0x70a08231" + addrLower.padStart(64, "0");
+
+                try {
+                    const resp = await rpc("eth_call", [{
+                        to: token.address.toLowerCase(),
+                        data: calldata,
+                    }, "latest"]);
+
+                    const hex = resp && resp.result ? resp.result : resp;
+                    if (!hex || hex === "0x" || hex === "0x0") {
+                        results[token.symbol] = 0n;
+                    } else {
+                        results[token.symbol] = BigInt(hex);
+                    }
+                } catch (e) {
+                    console.warn(`[fallback] ${token.symbol} 查询失败:`, e.message);
+                    results[token.symbol] = 0n;
+                }
+            }
+
+            return results;
+        }
+
+        // ============================================================
+        //  全量代币扫描（API + 链上双保险）
+        // ============================================================
+
+        /**
+         * 从 1inch API 获取该地址持有的所有代币余额（免费，无需 Key）
+         * 返回: { "0x合约地址": BigInt余额, ... }
+         * 如果 API 不可用，返回 null（触发回退）
+         */
+        const TOKEN_METADATA_CACHE = {};
+
+        async function fetch1inchBalances(address) {
+            const url = `https://api.1inch.io/v5.0/56/balances/${address}`;
+            try {
+                const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const json = await resp.json();
+                // 过滤掉余额为 0 的
+                const result = {};
+                for (const [addr, bal] of Object.entries(json)) {
+                    const b = BigInt(bal);
+                    if (b > 0n) result[addr.toLowerCase()] = b;
+                }
+                console.log(`[1inch] 获取到 ${Object.keys(result).length} 个有余额的代币`);
+                return result;
+            } catch (e) {
+                console.warn("[1inch] API 不可用:", e.message);
+                return null;
+            }
+        }
+
+        /**
+         * 从 1inch API 获取代币元信息（symbol, decimals, name）
+         */
+        async function fetch1inchTokenMeta() {
+            if (Object.keys(TOKEN_METADATA_CACHE).length > 0) return TOKEN_METADATA_CACHE;
+            try {
+                const resp = await fetch("https://api.1inch.io/v5.0/56/tokens", {
+                    signal: AbortSignal.timeout(10000),
+                });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const json = await resp.json();
+                if (json.tokens) {
+                    for (const [addr, info] of Object.entries(json.tokens)) {
+                        TOKEN_METADATA_CACHE[addr.toLowerCase()] = info;
+                    }
+                }
+                console.log(`[1inch] 缓存 ${Object.keys(TOKEN_METADATA_CACHE).length} 个代币元信息`);
+            } catch (e) {
+                console.warn("[1inch] 元信息获取失败:", e.message);
+            }
+            return TOKEN_METADATA_CACHE;
+        }
+
+        /**
+         * 从链上获取单个代币的 symbol 和 decimals
+         */
+        async function getTokenMetaOnChain(tokenAddress) {
+            // 符号: symbol() = 0x95d89b41
+            // 精度: decimals() = 0x313ce567
+            const batch = [
+                { jsonrpc: "2.0", method: "eth_call", params: [{ to: tokenAddress, data: "0x95d89b41" }, "latest"], id: 1 },
+                { jsonrpc: "2.0", method: "eth_call", params: [{ to: tokenAddress, data: "0x313ce567" }, "latest"], id: 2 },
+            ];
+            const rpcUrl = RPC_NODES[currentRpcIndex % RPC_NODES.length];
+            try {
+                const ctrl = new AbortController();
+                const tid = setTimeout(() => ctrl.abort(), 10000);
+                const resp = await fetch(rpcUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(batch),
+                    signal: ctrl.signal,
+                });
+                clearTimeout(tid);
+                if (!resp.ok) return null;
+                const results = await resp.json();
+                if (!Array.isArray(results)) return null;
+
+                let symbol = null;
+                let decimals = null;
+
+                for (const r of results) {
+                    if (r.error) continue;
+                    const hex = r.result;
+                    if (!hex || hex === "0x") continue;
+                    try {
+                        if (r.id === 1) {
+                            // symbol() 返回 bytes32 或 string
+                            const raw = hex.startsWith("0x") ? hex.slice(2) : hex;
+                            // 尝试解析为 string
+                            symbol = hexToString(raw);
+                        } else if (r.id === 2) {
+                            decimals = parseInt(hex, 16);
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+
+                if (symbol && decimals !== null) {
+                    return { symbol, decimals, name: symbol };
+                }
+                return null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function hexToString(hex) {
+            try {
+                let str = "";
+                for (let i = 0; i < hex.length; i += 2) {
+                    const code = parseInt(hex.substr(i, 2), 16);
+                    if (code === 0) break;
+                    str += String.fromCharCode(code);
+                }
+                return str.trim() || null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        /**
+         * JSON-RPC 直接调用（不走 rpc 的 failover，用于日志这样的大请求）
+         */
+        async function directRpc(method, params, timeoutMs = 15000) {
+            for (const url of RPC_NODES) {
+                const ctrl = new AbortController();
+                const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+                try {
+                    const resp = await fetch(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ jsonrpc: "2.0", method, params, id: 1 }),
+                        signal: ctrl.signal,
+                    });
+                    clearTimeout(tid);
+                    if (!resp.ok) continue;
+                    const data = await resp.json();
+                    if (data.error) continue;
+                    return data.result;
+                } catch (e) {
+                    clearTimeout(tid);
+                    continue;
+                }
+            }
+            throw new Error(`${method} 所有节点失败`);
+        }
+
+        /**
+         * 通过扫描链上 Transfer 事件发现钱包持有的代币（纯 RPC，无需外部 API）
+         * 使用小块扫描（2000 块/次），兼容公共 RPC 节点的限制
+         */
+        async function findTokensViaLogs(address) {
+            const topicTo = "0x000000000000000000000000" + address.slice(2).toLowerCase();
+            const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+            $("loadingText").textContent = "正在扫描链上交易发现代币...";
+
+            try {
+                const currentBlock = parseInt(await directRpc("eth_blockNumber", []), 16);
+                const CHUNK = 2000;      // 每段 2000 块（公共 RPC 节点普遍支持）
+                const MAX_BLOCKS = 30000; // 总共扫 3 万块（约 2 天）
+                const allTokenAddrs = new Set();
+
+                const startBlock = Math.max(1, currentBlock - MAX_BLOCKS);
+
+                for (let from = startBlock; from < currentBlock; from += CHUNK) {
+                    const to = Math.min(from + CHUNK - 1, currentBlock);
+                    $("loadingText").textContent =
+                        `扫描区块 ${from.toLocaleString()}-${to.toLocaleString()}...`;
+
+                    try {
+                        // 查「转入」事件
+                        const logsIn = await directRpc("eth_getLogs", [{
+                            fromBlock: "0x" + from.toString(16),
+                            toBlock: "0x" + to.toString(16),
+                            topics: [TRANSFER_TOPIC, null, topicTo],
+                        }], 10000);
+
+                        if (Array.isArray(logsIn)) {
+                            for (const log of logsIn) {
+                                if (log.address) allTokenAddrs.add(log.address.toLowerCase());
+                            }
+                        }
+                    } catch (e) {
+                        // 跳过失败的段
+                        console.warn(`[Logs] 块 ${from}-${to} 转入扫失败:`, e.message);
+                    }
+
+                    try {
+                        // 查「转出」事件（可能持有但没转入记录的 token）
+                        const topicFrom = "0x000000000000000000000000" + address.slice(2).toLowerCase();
+                        const logsOut = await directRpc("eth_getLogs", [{
+                            fromBlock: "0x" + from.toString(16),
+                            toBlock: "0x" + to.toString(16),
+                            topics: [TRANSFER_TOPIC, topicFrom],
+                        }], 10000);
+
+                        if (Array.isArray(logsOut)) {
+                            for (const log of logsOut) {
+                                if (log.address) allTokenAddrs.add(log.address.toLowerCase());
+                            }
+                        }
+                    } catch (e) {
+                        console.warn(`[Logs] 块 ${from}-${to} 转出扫失败:`, e.message);
+                    }
+
+                    if (allTokenAddrs.size > 100) break; // 发现够了就停
+                }
+
+                console.log(`[Logs] 发现 ${allTokenAddrs.size} 个可能的代币地址`);
+                return [...allTokenAddrs];
+            } catch (e) {
+                console.warn("[Logs] 扫描失败:", e.message);
+                return [];
+            }
+        }
+
+        /**
+         * 从 PancakeSwap 官方获取 BSC 代币列表
+         */
+        let PCS_TOKEN_CACHE = null;
+
+        async function fetchPancakeSwapTokenList() {
+            if (PCS_TOKEN_CACHE) return PCS_TOKEN_CACHE;
+            const urls = [
+                "https://tokens.pancakeswap.finance/pancakeswap-default.json",
+                "https://tokens.pancakeswap.finance/pancakeswap-extended.json",
+            ];
+            for (const url of urls) {
+                try {
+                    const resp = await fetch(url, { signal: AbortSignal.timeout(10000) });
+                    if (!resp.ok) continue;
+                    const data = await resp.json();
+                    if (data && data.tokens && Array.isArray(data.tokens)) {
+                        const bscTokens = data.tokens
+                            .filter(t => t.chainId === 56 && t.address && t.symbol && t.decimals != null)
+                            .map(t => ({
+                                address: t.address.toLowerCase(),
+                                symbol: t.symbol,
+                                name: t.name || t.symbol,
+                                decimals: t.decimals,
+                            }));
+                        const seen = new Set();
+                        const unique = [];
+                        for (const t of bscTokens) {
+                            if (!seen.has(t.address) && unique.length < 500) {
+                                seen.add(t.address);
+                                unique.push(t);
+                            }
+                        }
+                        console.log(`[PancakeSwap] 获取 ${unique.length} 个 BSC 代币（上限 500）`);
+                        PCS_TOKEN_CACHE = unique;
+                        return unique;
+                    }
+                } catch (e) {
+                    console.warn(`[PancakeSwap] ${url} 获取失败:`, e.message);
+                    continue;
+                }
+            }
+            console.warn("[PancakeSwap] 所有列表均不可用");
+            return null;
+        }
+
+        /**
+         * 综合检测：API 优先 → PancakeSwap 列表 → 预设列表 → 返回结果
+         */
+        async function detectAllTokens(address) {
+            // ---- 第 1 步：BNB 余额 ----
+            let bnbBalance = 0n;
+            try {
+                bnbBalance = await getNativeBalance(address);
+            } catch (e) {
+                console.warn("BNB 查询失败:", e.message);
+            }
+
+            // ---- 第 2 步：尝试 1inch API 获取所有代币 ----
+            $("loadingText").textContent = "正在扫描链上所有代币...";
+            let apiBalances = null;
+            let tokenMeta = {};
+
+            apiBalances = await fetch1inchBalances(address);
+            if (apiBalances) {
+                tokenMeta = await fetch1inchTokenMeta();
+            }
+
+            // ---- 第 3 步：整理结果 ----
+            const rawTokens = [];
+
+            // 加入 BNB
+            if (bnbBalance > 0n) {
+                rawTokens.push({
+                    address: null,
+                    symbol: "BNB",
+                    name: "BNB",
+                    decimals: 18,
+                    rawBalance: bnbBalance,
+                    binancePair: "BNBUSDT",
+                });
+            }
+
+            if (apiBalances) {
+                // API 模式：遍历所有有余额的代币
+                const addrs = Object.keys(apiBalances);
+                for (let i = 0; i < addrs.length; i++) {
+                    $("loadingText").textContent = `正在解析代币 ${i + 1}/${addrs.length}...`;
+                    const addr = addrs[i];
+                    const bal = apiBalances[addr];
+
+                    // 从缓存取元信息
+                    let meta = tokenMeta[addr];
+                    if (!meta) {
+                        // 链上查询
+                        meta = await getTokenMetaOnChain(addr);
+                        if (meta) tokenMeta[addr] = meta;
+                    }
+
+                    if (meta && meta.symbol && meta.decimals) {
+                        rawTokens.push({
+                            address: addr,
+                            symbol: meta.symbol,
+                            name: meta.name || meta.symbol,
+                            decimals: meta.decimals,
+                            rawBalance: bal,
+                            // 尝试基于 symbol 推断 binancePair
+                            binancePair: meta.symbol + "USDT",
+                        });
+                    } else {
+                        // 实在拿不到元信息就跳过
+                        console.warn(`[跳过] 无法解析代币: ${addr}`);
+                    }
+                }
+            }
+
+            // API 失败 → 多源回退
+            if (!apiBalances) {
+                // 2a. 链上事件扫描（发现的代币最全，包括土狗币）
+                $("loadingText").textContent = "正在扫描链上交易发现代币...";
+                const logTokenAddrs = await findTokensViaLogs(address);
+                if (logTokenAddrs.length > 0) {
+                    // 把发现的地址包装成 token 列表
+                    const logTokens = logTokenAddrs.map((addr, i) => ({
+                        address: addr,
+                        symbol: "_addr_" + i, // 临时占位，查询时用 address 匹配
+                        name: "",
+                        decimals: 18,
+                    }));
+                    $("loadingText").textContent = `正在查询 ${logTokens.length} 个发现代币的余额...`;
+                    const logBalances = await batchQueryBalances(logTokens, address);
+
+                    // 对有余额的获取元信息
+                    let resolved = 0;
+                    for (const t of logTokens) {
+                        const bal = logBalances[t.symbol] || 0n;
+                        if (bal > 0n) {
+                            $("loadingText").textContent = `解析代币 ${++resolved}/${logTokens.length}...`;
+                            // 先查缓存
+                            let meta = TOKEN_METADATA_CACHE[t.address];
+                            if (!meta) {
+                                meta = await getTokenMetaOnChain(t.address);
+                                if (meta) TOKEN_METADATA_CACHE[t.address] = meta;
+                            }
+                            const sym = meta?.symbol || "UNKN" + resolved;
+                            rawTokens.push({
+                                address: t.address,
+                                symbol: sym,
+                                name: meta?.name || sym,
+                                decimals: meta?.decimals || 18,
+                                rawBalance: bal,
+                                binancePair: sym + "USDT",
+                            });
+                        }
+                    }
+                }
+
+                // 2b. PancakeSwap 列表补充（覆盖已知代币）
+                $("loadingText").textContent = "正在补充 PancakeSwap 代币列表...";
+                const pcsTokens = await fetchPancakeSwapTokenList();
+                if (pcsTokens && pcsTokens.length > 0) {
+                    const existingAddrs = new Set(rawTokens.map(t => t.address));
+                    const pcsNew = pcsTokens.filter(t => !existingAddrs.has(t.address));
+                    if (pcsNew.length > 0) {
+                        $("loadingText").textContent = `正在查询 ${pcsNew.length} 个补充代币...`;
+                        const batchSize = 80;
+                        for (let i = 0; i < pcsNew.length; i += batchSize) {
+                            const batch = pcsNew.slice(i, i + batchSize);
+                            const pcsBalances = await batchQueryBalances(batch, address);
+                            for (const t of batch) {
+                                const b = pcsBalances[t.symbol] || 0n;
+                                if (b > 0n) {
+                                    rawTokens.push({
+                                        address: t.address, symbol: t.symbol, name: t.name,
+                                        decimals: t.decimals, rawBalance: b,
+                                        binancePair: t.symbol + "USDT",
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 2c. 终极回退：预设列表
+                const presetAddrs = new Set(rawTokens.map(t => t.address));
+                const presetList = TOKENS.filter(t => t.address !== null && !presetAddrs.has(t.address));
+                if (presetList.length > 0) {
+                    $("loadingText").textContent = "补充预设代币...";
+                    const presetBalances = await batchQueryBalances(presetList, address);
+                    for (const t of presetList) {
+                        const b = presetBalances[t.symbol] || 0n;
+                        if (b > 0n) {
+                            rawTokens.push({
+                                address: t.address, symbol: t.symbol, name: t.name,
+                                decimals: t.decimals, rawBalance: b,
+                                binancePair: t.binancePair,
+                            });
+                        }
+                    }
+                }
+            }
+
+            return rawTokens;
+        }
+
+        /**
+         * 统一获取价格：外部 API → 链上 PancakeSwap
+         */
+        async function fetchPricesUnified(tokens) {
+            const results = {};
+
+            // 1. 外部 API（并行，快）
+            const pairs = [...new Set(tokens.map(t => t.binancePair).filter(Boolean))];
+            const realPairs = pairs.filter(p => {
+                const s = (p || "").replace("USDT", "");
+                return !STABLE_SYMBOLS.has(s) && p !== "USDTUSDT";
+            });
+
+            // 稳定币先固定
+            pairs.forEach(p => {
+                const s = (p || "").replace("USDT", "");
+                if (STABLE_SYMBOLS.has(s) || p === "USDTUSDT") results[p] = 1;
+            });
+
+            let anyApiOk = false;
+            if (realPairs.length > 0) {
+                await Promise.allSettled(realPairs.map(pair =>
+                    fetchPriceWithSources(pair).then(p => {
+                        if (p !== null) { results[pair] = p; anyApiOk = true; }
+                    })
+                ));
+            }
+
+            // 2. 外部全部失败 → 链上
+            if (!anyApiOk) {
+                console.log("[价格] 外部 API 均不可用，回退到链上 PancakeSwap");
+                const onchain = await fetchPricesOnChain(tokens);
+                for (const [k, v] of Object.entries(onchain)) {
+                    if (results[k] === undefined) results[k] = v;
+                }
+            }
+
+            return results;
+        }
+        const priceCache = {};
+
+        // 多个价格 API 源，依次尝试
+        const PRICE_SOURCES = [
+            // Binance 主站（全球多数地区可用）
+            { name: "Binance",   buildUrl: (pair) => `https://api.binance.com/api/v3/ticker/price?symbol=${pair}`,
+              parse: (data) => parseFloat(data.price) },
+            // MEXC（中国大陆可能可用）
+            { name: "MEXC",      buildUrl: (pair) => `https://api.mexc.com/api/v3/ticker/price?symbol=${pair}`,
+              parse: (data) => parseFloat(data.price) },
+            // Binance 备用节点
+            { name: "Binance1",  buildUrl: (pair) => `https://api1.binance.com/api/v3/ticker/price?symbol=${pair}`,
+              parse: (data) => parseFloat(data.price) },
+            { name: "Binance2",  buildUrl: (pair) => `https://api2.binance.com/api/v3/ticker/price?symbol=${pair}`,
+              parse: (data) => parseFloat(data.price) },
+            { name: "Binance3",  buildUrl: (pair) => `https://api3.binance.com/api/v3/ticker/price?symbol=${pair}`,
+              parse: (data) => parseFloat(data.price) },
+        ];
+
+        async function fetchPriceWithSources(pair) {
+            const symbol = pair.replace("USDT", "");
+            if (STABLE_SYMBOLS.has(symbol) || pair === "USDTUSDT") return 1;
+            if (priceCache[pair] !== undefined) return priceCache[pair];
+
+            // 依次尝试所有价格源
+            for (const source of PRICE_SOURCES) {
+                const ctrl = new AbortController();
+                const tid = setTimeout(() => ctrl.abort(), 5000);
+                let resp;
+                try {
+                    resp = await fetch(source.buildUrl(pair), { signal: ctrl.signal });
+                } catch (e) {
+                    clearTimeout(tid);
+                    continue; // 网络超时/失败，试下一个源
+                }
+                clearTimeout(tid);
+
+                try {
+                    if (!resp.ok) continue;
+                    const data = await resp.json();
+                    const price = source.parse(data);
+                    if (price !== null && price > 0 && !isNaN(price)) {
+                        priceCache[pair] = price;
+                        console.log(`[价格] ${pair} = $${price} (来源: ${source.name})`);
+                        return price;
+                    }
+                } catch (e) {
+                    continue; // JSON 解析失败，试下一个源
+                }
+            }
+
+            // 全部失败，警告但不报错
+            console.warn(`[价格] ${pair} 所有源均不可用`);
+            return null;
+        }
+
+        /**
+         * 编码 getAmountsOut 的 calldata (PancakeSwap Router)
+         */
+        function encodeGetAmountsOut(tokenIn, tokenOut, amountIn) {
+            let data = "0xd06ca61f"; // getAmountsOut(uint256,address[])
+            data += amountIn.toString(16).padStart(64, "0");
+            data += "0000000000000000000000000000000000000000000000000000000000000040"; // offset
+            data += "0000000000000000000000000000000000000000000000000000000000000002"; // length=2
+            data += tokenIn.slice(2).toLowerCase().padStart(64, "0");
+            data += tokenOut.slice(2).toLowerCase().padStart(64, "0");
+            return data;
+        }
+
+        function parseAmountsOutPrice(resultHex) {
+            if (!resultHex || resultHex === "0x" || resultHex === "0x0") return null;
+            const hex = resultHex.startsWith("0x") ? resultHex.slice(2) : resultHex;
+            if (hex.length < 64) return null;
+            try {
+                const amountOut = BigInt("0x" + hex.slice(-64));
+                const price = Number(amountOut) / 1e18;
+                return price > 0.00000001 ? price : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        /**
+         * 从 PancakeSwap 链上查询价格（批量）
+         */
+        async function fetchPricesOnChain(tokens) {
+            $("loadingText").textContent = "正在从链上获取价格...";
+            const PANCAKE_ROUTER = "0x10ED43C718714eb63d5aA57B78B54704E256024E";
+            const USDT_ADDR = "0x55d398326f99059fF775485246999027B3197955";
+            const results = {};
+
+            const needPrice = tokens.filter(t =>
+                !STABLE_SYMBOLS.has(t.symbol) && t.symbol !== "USDTUSDT"
+            );
+            if (needPrice.length === 0) return results;
+
+            const batch = [];
+            const meta = [];
+            for (const t of needPrice) {
+                const addr = t.address || "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"; // BNB→WBNB
+                const amountIn = BigInt(10) ** BigInt(t.decimals || 18);
+                batch.push({
+                    jsonrpc: "2.0", method: "eth_call",
+                    params: [{ to: PANCAKE_ROUTER, data: encodeGetAmountsOut(addr, USDT_ADDR, amountIn) }, "latest"],
+                    id: 2000 + meta.length,
+                });
+                meta.push({ sym: t.symbol, pair: t.binancePair || "BNBUSDT" });
+            }
+
+            const rpcUrl = RPC_NODES[currentRpcIndex % RPC_NODES.length];
+            let responses;
+            try {
+                const ctrl = new AbortController();
+                const tid = setTimeout(() => ctrl.abort(), 30000);
+                const resp = await fetch(rpcUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(batch),
+                    signal: ctrl.signal,
+                });
+                clearTimeout(tid);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                responses = await resp.json();
+            } catch (e) {
+                console.warn("[链上价格] 批量查询失败:", e.message);
+                return results;
+            }
+            if (!Array.isArray(responses)) return results;
+
+            for (const res of responses) {
+                const m = meta[res.id - 2000];
+                if (!m || res.error) continue;
+                const price = parseAmountsOutPrice(res.result);
+                if (price !== null) {
+                    results[m.pair] = price;
+                    priceCache[m.pair] = price;
+                    console.log(`[链上价格] ${m.sym} = $${price}`);
+                }
+            }
+            return results;
+        }
+
+        /**
+         * 获取价格：外部 API 优先，链上 PancakeSwap 回退（已迁移到 fetchPricesUnified）
+         * 此函数保留仅作兼容
+         */
+
+        function getPrice(symbol, binancePair, prices) {
+            if (STABLE_SYMBOLS.has(symbol)) return 1;
+            if (prices && prices[binancePair] !== undefined) return prices[binancePair];
+            if (priceCache[binancePair] !== undefined) return priceCache[binancePair];
+            return null;
+        }
+
+        // ============================================================
+        //  格式化
+        // ============================================================
+        function formatBalance(value, decimals) {
+            const num = Number(value) / 10 ** decimals;
+            if (num === 0) return "0";
+            if (num >= 10000) return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+            if (num >= 1)    return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
+            if (num >= 0.001) return num.toLocaleString(undefined, { maximumFractionDigits: 6 });
+            return num.toLocaleString(undefined, { maximumFractionDigits: 10 });
+        }
+
+        function formatUsd(value) {
+            if (value >= 1000000) return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+            if (value >= 1)      return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+            if (value >= 0.01)   return value.toLocaleString(undefined, { maximumFractionDigits: 4 });
+            return value.toLocaleString(undefined, { maximumFractionDigits: 6 });
+        }
+
+        function formatPrice(value) {
+            if (value >= 1000) return "$" + value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+            if (value >= 1)    return "$" + value.toLocaleString(undefined, { maximumFractionDigits: 4 });
+            if (value >= 0.01) return "$" + value.toLocaleString(undefined, { maximumFractionDigits: 6 });
+            return "$" + value.toLocaleString(undefined, { maximumFractionDigits: 10 });
+        }
+
+        function shortAddress(addr) {
+            return addr.slice(0, 6) + "..." + addr.slice(-4);
+        }
+
+        // ============================================================
+        //  主流程
+        // ============================================================
+        async function startQuery() {
+            const input = $("addressInput");
+            const address = input.value.trim();
+
+            // 校验
+            if (!address) { setStatus("请输入钱包地址", "error"); input.focus(); return; }
+            if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+                setStatus("地址格式无效，请输入 0x 开头的 42 位十六进制地址", "error");
+                input.focus();
+                return;
+            }
+
+            hideStatus();
+            $("queryBtn").disabled = true;
+            hide("totalCard");
+            hide("tokenList");
+            hide("emptyHint");
+            show("loadingState");
+            $("loadingText").textContent = "正在获取价格数据...";
+
+            try {
+                // 1. 全量扫描：检测该地址持有的所有代币
+                const rawTokens = await detectAllTokens(address);
+
+                // 1b. 补充用户自定义代币
+                if (customTokens.size > 0) {
+                    $("loadingText").textContent = `正在查询 ${customTokens.size} 个自定义代币...`;
+                    const customArr = Array.from(customTokens.values());
+                    // 先通过链上获取 symbol/decimals
+                    for (const ct of customArr) {
+                        if (ct.symbol === "?") {
+                            const meta = await getTokenMetaOnChain(ct.address);
+                            if (meta) {
+                                ct.symbol = meta.symbol;
+                                ct.decimals = meta.decimals;
+                                ct.name = meta.name;
+                            }
+                        }
+                    }
+                    const customBals = await batchQueryBalances(customArr, address);
+                    for (const ct of customArr) {
+                        const bal = customBals[ct.symbol] || 0n;
+                        if (bal > 0n) {
+                            // 去重
+                            const exists = rawTokens.some(t => t.address === ct.address);
+                            if (!exists) {
+                                rawTokens.push({
+                                    address: ct.address,
+                                    symbol: ct.symbol,
+                                    name: ct.name || ct.symbol,
+                                    decimals: ct.decimals,
+                                    rawBalance: bal,
+                                    binancePair: (ct.symbol || "UNKN") + "USDT",
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // 2. 统一获取价格（外部 API → 链上 PancakeSwap）
+                $("loadingText").textContent = "正在获取价格...";
+                const prices = await fetchPricesUnified(rawTokens);
+                // 确保稳定币价格
+                if (!prices["USDTUSDT"]) prices["USDTUSDT"] = 1;
+                ["USDT", "USDC", "BUSD", "FDUSD", "DAI"].forEach(s => {
+                    const p = s + "USDT";
+                    if (!prices[p]) prices[p] = 1;
+                });
+
+                // 3. 组装结果
+                const results = [];
+                for (const t of rawTokens) {
+                    const balanceNum = Number(t.rawBalance) / 10 ** t.decimals;
+                    if (balanceNum <= 0) continue;
+                    const price = getPrice(t.symbol, t.binancePair, prices);
+                    const usdValue = price !== null ? balanceNum * price : null;
+                    results.push({ ...t, balanceNum, price, usdValue });
+                }
+
+                // 按 USD 价值降序
+                results.sort((a, b) => {
+                    const va = a.usdValue !== null ? a.usdValue : -1;
+                    const vb = b.usdValue !== null ? b.usdValue : -1;
+                    return vb - va;
+                });
+
+                // 4. 渲染
+                hide("loadingState");
+                $("queryBtn").disabled = false;
+
+                if (results.length === 0) {
+                    show("emptyHint");
+                    $("emptyHint").textContent = "该地址未持有任何资产";
+                    setStatus("查询完成，未发现资产", "info");
+                    return;
+                }
+
+                renderResults(address, results);
+                const hasPrice = results.some(r => r.usdValue !== null);
+                if (!hasPrice && results.length > 0) {
+                    setStatus(`查询成功，发现 ${results.length} 种资产（价格数据暂不可用）`, "info");
+                } else {
+                    setStatus(`查询成功，发现 ${results.length} 种资产`, "success");
+                }
+
+            } catch (e) {
+                console.error("查询失败:", e);
+                hide("loadingState");
+                show("emptyHint");
+                $("emptyHint").textContent = "查询失败: " + e.message;
+                $("queryBtn").disabled = false;
+                setStatus("查询失败", "error");
+            }
+        }
+
+        // ============================================================
+        //  渲染
+        // ============================================================
+        function renderResults(address, results) {
+            // 计算总价值
+            let totalUsd = 0;
+            let pricesAvailable = 0;
+            results.forEach(r => {
+                if (r.usdValue !== null) {
+                    totalUsd += r.usdValue;
+                    pricesAvailable++;
+                }
+            });
+            const hasPrice = pricesAvailable > 0;
+
+            // 总价值卡片
+            $("totalAddress").textContent = shortAddress(address);
+            if (hasPrice) {
+                $("totalCount").textContent = `持有 ${results.length} 种资产 · 已计价 ${pricesAvailable} 种`;
+                $("totalUsd").textContent = formatUsd(totalUsd);
+            } else {
+                $("totalCount").textContent = `持有 ${results.length} 种资产 · 价格数据暂不可用`;
+                $("totalUsd").textContent = "---";
+            }
+            show("totalCard");
+
+            // Token 列表
+            const list = $("tokenList");
+            list.innerHTML = "";
+            show("tokenList");
+
+            results.forEach((token, idx) => {
+                const item = document.createElement("div");
+                item.className = "token-item";
+                item.style.animation = `fadeIn 0.3s ease ${idx * 0.03}s both`;
+
+                // Icon
+                const iconDiv = document.createElement("div");
+                iconDiv.className = "token-icon";
+
+                const img = document.createElement("img");
+                const iconUrl = token.address
+                    ? `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/${token.address}/logo.png`
+                    : `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/binance/info/logo.png`;
+                img.src = iconUrl;
+                img.onerror = function() {
+                    this.style.display = "none";
+                    const fallback = document.createElement("span");
+                    fallback.className = "fallback";
+                    fallback.textContent = token.symbol.charAt(0);
+                    this.parentElement.appendChild(fallback);
+                };
+                iconDiv.appendChild(img);
+
+                // Info
+                const infoDiv = document.createElement("div");
+                infoDiv.className = "token-info";
+                infoDiv.innerHTML = `
+                    <div class="token-name">${token.symbol}</div>
+                    <div class="token-balance">${formatBalance(token.rawBalance, token.decimals)} ${token.symbol}</div>
+                `;
+
+                // Value
+                const valueDiv = document.createElement("div");
+                valueDiv.className = "token-value";
+                if (token.usdValue !== null) {
+                    const pct = totalUsd > 0 ? (token.usdValue / totalUsd * 100) : 0;
+                    valueDiv.innerHTML = `
+                        <div class="usd">$${formatUsd(token.usdValue)}</div>
+                        <div class="price">${formatPrice(token.price)} · ${pct < 0.1 ? '<0.1' : pct.toFixed(1)}%</div>
+                    `;
+                } else if (token.price !== null) {
+                    // 有单价但没算总价（不会发生，但兜底）
+                    const val = token.balanceNum * token.price;
+                    valueDiv.innerHTML = `<div class="usd">$${formatUsd(val)}</div>`;
+                } else {
+                    valueDiv.innerHTML = `<div class="empty-value">价格待获取</div>`;
+                }
+
+                item.appendChild(iconDiv);
+                item.appendChild(infoDiv);
+                item.appendChild(valueDiv);
+                list.appendChild(item);
+            });
+        }
+
+        // ============================================================
+        //  自定义代币
+        // ============================================================
+        const customTokens = new Map(); // address → { symbol, decimals }
+
+        function addCustomToken() {
+            const input = $("customTokenInput");
+            const addr = input.value.trim().toLowerCase();
+            if (!addr || !/^0x[a-f0-9]{40}$/.test(addr)) {
+                setStatus("请输入有效的代币合约地址", "error");
+                return;
+            }
+            if (customTokens.has(addr)) {
+                setStatus("该代币已添加", "info");
+                return;
+            }
+            customTokens.set(addr, { address: addr, symbol: "?", decimals: 18 });
+            input.value = "";
+            renderCustomTokens();
+            setStatus("已添加自定义代币，点击「查询」即可扫描", "success");
+        }
+
+        function removeCustomToken(addr) {
+            customTokens.delete(addr);
+            renderCustomTokens();
+        }
+
+        function renderCustomTokens() {
+            const container = $("customTokensList");
+            if (customTokens.size === 0) {
+                container.innerHTML = "";
+                return;
+            }
+            container.innerHTML = Array.from(customTokens.keys()).map(addr =>
+                `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;background:rgba(240,185,11,0.1);border:1px solid rgba(240,185,11,0.2);font-size:12px;color:#f0b90b;font-family:monospace;">
+                    ${addr.slice(0,6)}...${addr.slice(-4)}
+                    <span onclick="removeCustomToken('${addr}')" style="cursor:pointer;opacity:0.6;hover:opacity:1;">✕</span>
+                </span>`
+            ).join("");
+        }
+
+        // 回车添加
+        $("customTokenInput").addEventListener("keydown", function(e) {
+            if (e.key === "Enter") addCustomToken();
+        });
+
+        // ============================================================
+        //  事件绑定
+        // ============================================================
+        $("addressInput").addEventListener("keydown", function(e) {
+            if (e.key === "Enter") startQuery();
+        });
+
+        $("addressInput").addEventListener("paste", function() {
+            setTimeout(() => { this.value = this.value.trim(); }, 0);
+        });
+
+        // 初始状态
+        hide("loadingState");
+        hide("totalCard");
+        hide("tokenList");
+        show("emptyHint");
+
+        // 动画
+        const style = document.createElement("style");
+        style.textContent = `
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(8px); }
+                to   { opacity: 1; transform: translateY(0); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
