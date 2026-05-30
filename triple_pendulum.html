@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>三重摆 · 混沌轨迹</title>
+<style>
+*{margin:0;padding:0}
+body{background:#0a0a12;overflow:hidden;display:flex;align-items:center;justify-content:center;height:100vh}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let W, H, cx, cy;
+
+function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    cx = W / 2;
+    cy = H * 0.35;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ===== Physics =====
+const g = 9.81;
+const sc = Math.min(W, H) / 600;
+const L1 = 150 * sc, L2 = 120 * sc, L3 = 90 * sc;
+const m1 = 10, m2 = 8, m3 = 5;
+const DT = 0.005;
+const SUB = 4;
+
+let state = [Math.PI * 0.85, Math.PI * 0.55, Math.PI * 0.35, 0, 0, 0];
+const trail = [];
+const MAX_TRAIL = 1200;
+
+// ===== Equations of Motion =====
+function accel(s) {
+    const [t1, t2, t3, w1, w2, w3] = s;
+    const c12 = Math.cos(t1 - t2), s12 = Math.sin(t1 - t2);
+    const c13 = Math.cos(t1 - t3), s13 = Math.sin(t1 - t3);
+    const c23 = Math.cos(t2 - t3), s23 = Math.sin(t2 - t3);
+    const m23 = m2 + m3, m123 = m1 + m2 + m3;
+
+    const M = [
+        [m123*L1*L1, m23*L1*L2*c12, m3*L1*L3*c13],
+        [m23*L1*L2*c12, m23*L2*L2, m3*L2*L3*c23],
+        [m3*L1*L3*c13, m3*L2*L3*c23, m3*L3*L3],
+    ];
+    const F = [
+        -m23*L1*L2*w2*w2*s12 - m3*L1*L3*w3*w3*s13 - m123*g*L1*Math.sin(t1),
+         m23*L1*L2*w1*w1*s12 - m3*L2*L3*w3*w3*s23 - m23*g*L2*Math.sin(t2),
+         m3*L1*L3*w1*w1*s13 + m3*L2*L3*w2*w2*s23 - m3*g*L3*Math.sin(t3),
+    ];
+
+    // Gaussian elimination
+    const A = M.map(r => [...r]), b = [...F];
+    for (let c = 0; c < 3; c++) {
+        let mr = c;
+        for (let r = c+1; r < 3; r++) if (Math.abs(A[r][c]) > Math.abs(A[mr][c])) mr = r;
+        if (mr !== c) { [A[c], A[mr]] = [A[mr], A[c]]; [b[c], b[mr]] = [b[mr], b[c]]; }
+        for (let r = c+1; r < 3; r++) {
+            const f = A[r][c] / A[c][c];
+            for (let j = c; j < 3; j++) A[r][j] -= f * A[c][j];
+            b[r] -= f * b[c];
+        }
+    }
+    const a = [0,0,0];
+    for (let i = 2; i >= 0; i--) {
+        let s = b[i];
+        for (let j = i+1; j < 3; j++) s -= A[i][j] * a[j];
+        a[i] = s / A[i][i];
+    }
+    return a;
+}
+
+function deriv(s) {
+    const a = accel(s);
+    return [s[3], s[4], s[5], a[0], a[1], a[2]];
+}
+
+function rk4(s, h) {
+    const k1 = deriv(s);
+    const s2 = s.map((v,i) => v + 0.5*h*k1[i]);
+    const k2 = deriv(s2);
+    const s3 = s.map((v,i) => v + 0.5*h*k2[i]);
+    const k3 = deriv(s3);
+    const s4 = s.map((v,i) => v + h*k3[i]);
+    const k4 = deriv(s4);
+    return s.map((v,i) => v + (h/6)*(k1[i]+2*k2[i]+2*k3[i]+k4[i]));
+}
+
+function getPos(s) {
+    const [t1, t2, t3] = s;
+    const x1 = cx + L1*Math.sin(t1), y1 = cy + L1*Math.cos(t1);
+    const x2 = x1 + L2*Math.sin(t2), y2 = y1 + L2*Math.cos(t2);
+    const x3 = x2 + L3*Math.sin(t3), y3 = y2 + L3*Math.cos(t3);
+    return [{x:cx,y:cy},{x:x1,y:y1},{x:x2,y:y2},{x:x3,y:y3}];
+}
+
+// ===== Rendering =====
+function glow(x, y, r, r2, g2, b2, alpha) {
+    const grad = ctx.createRadialGradient(x,y,0,x,y,r);
+    grad.addColorStop(0, `rgba(${r2},${g2},${b2},${alpha})`);
+    grad.addColorStop(0.3, `rgba(${r2},${g2},${b2},${alpha*0.3})`);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+}
+
+function render() {
+    // NaN guard: if physics blew up, reset
+    if (state.some(v => !isFinite(v) || Math.abs(v) > 1e6)) {
+        state = [1.5, 1.0, 0.5, 0, 0, 0];
+        trail.length = 0;
+        return;
+    }
+    // First frame solid fill, subsequent frames fade
+    if (trail.length === 0) {
+        ctx.fillStyle = '#0a0a12';
+        ctx.fillRect(0,0,W,H);
+    } else {
+        ctx.fillStyle = 'rgba(10,10,18,0.12)';
+        ctx.fillRect(0,0,W,H);
+    }
+
+    const pos = getPos(state);
+    const tip = pos[3];
+    trail.push({x:tip.x,y:tip.y});
+    if (trail.length > MAX_TRAIL) trail.shift();
+
+    // Draw trail
+    if (trail.length > 2) {
+        for (let i = 1; i < trail.length; i++) {
+            const t = i / trail.length;
+            ctx.strokeStyle = `hsl(${30+25*(1-t)},100%,${35+55*(1-t)}%)`;
+            ctx.globalAlpha = t * 0.85;
+            ctx.lineWidth = 0.8 + t * 3.5;
+            ctx.beginPath();
+            ctx.moveTo(trail[i-1].x, trail[i-1].y);
+            ctx.lineTo(trail[i].x, trail[i].y);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // Tip glow
+    glow(tip.x, tip.y, 45*sc, 255, 200, 100, 0.5);
+    glow(tip.x, tip.y, 22*sc, 255, 255, 220, 0.7);
+
+    // Arms
+    for (let i = 0; i < 3; i++) {
+        const p1 = pos[i], p2 = pos[i+1];
+        ctx.shadowColor = 'rgba(255,200,100,0.25)';
+        ctx.shadowBlur = 6;
+        ctx.strokeStyle = 'rgba(210,190,170,0.65)';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        ctx.shadowBlur = 0;
+    }
+
+    // Joints
+    for (let i = 1; i < 4; i++) {
+        const b = i === 3 ? 1 : 0.6;
+        const r = i === 3 ? 7 : 4.5;
+        ctx.shadowColor = `rgba(255,200,100,${0.4*b})`;
+        ctx.shadowBlur = 12*b;
+        ctx.fillStyle = `rgba(255,${220-i*20},${180-i*30},${b})`;
+        ctx.beginPath();
+        ctx.arc(pos[i].x, pos[i].y, r*sc*(i===3?1.6:1), 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+
+    // Pivot
+    glow(cx, cy, 12*sc, 200, 180, 160, 0.4);
+}
+
+// ===== Loop =====
+function loop() {
+    try {
+        for (let i = 0; i < SUB; i++) state = rk4(state, DT);
+        render();
+    } catch (e) {
+        console.error(e);
+    }
+    requestAnimationFrame(loop);
+}
+
+// Click to reset with random state
+canvas.addEventListener('click', () => {
+    state = [
+        (Math.random()-0.5)*2.8, (Math.random()-0.5)*2.8, (Math.random()-0.5)*2.8,
+        (Math.random()-0.5)*4, (Math.random()-0.5)*4, (Math.random()-0.5)*4,
+    ];
+    trail.length = 0;
+});
+canvas.addEventListener('touchstart', e => { e.preventDefault(); canvas.click(); });
+
+loop();
+</script>
+</body>
+</html>
