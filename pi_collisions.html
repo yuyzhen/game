@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>π · 碰撞计数</title>
+<style>
+*{margin:0;padding:0}
+body{background:#0a0a12;overflow:hidden;font-family:system-ui,-apple-system,sans-serif;height:100vh;display:flex;align-items:center;justify-content:center}
+canvas{display:block;position:absolute;top:0;left:0}
+#ui{position:relative;z-index:10;text-align:center;pointer-events:none}
+#count{font-size:clamp(4rem,12vw,10rem);font-weight:800;color:#fff;letter-spacing:-2px}
+#pi{font-size:clamp(1.2rem,3vw,2.5rem);color:rgba(255,255,255,0.25);margin-top:8px;font-family:monospace;letter-spacing:4px}
+#info{font-size:clamp(0.8rem,1.5vw,1.2rem);color:rgba(255,255,255,0.12);margin-top:20px;letter-spacing:2px}
+.highlight{color:#64b4ff;font-weight:700}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div id="count">0</div>
+  <div id="pi">π ≈ <span class="highlight" id="piDisplay">3</span><span id="piDigits"></span></div>
+  <div id="info">碰撞计数 · 质量比 1 : 100,000</div>
+</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, fy;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  fy = H * 0.78;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// roundRect polyfill
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+    if(r>w/2)r=w/2;if(r>h/2)r=h/2;
+    this.moveTo(x+r,y);this.lineTo(x+w-r,y);
+    this.quadraticCurveTo(x+w,y,x+w,y+r);
+    this.lineTo(x+w,y+h-r);
+    this.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    this.lineTo(x+r,y+h);
+    this.quadraticCurveTo(x,y+h,x,y+h-r);
+    this.lineTo(x,y+r);
+    this.quadraticCurveTo(x,y,x+r,y);
+    return this;
+  };
+}
+
+// ===== Physics (meter units) =====
+const m1 = 1;
+const m2 = 100000;
+const W1 = 0.30;  // small block width (meters)
+const W2 = 0.75;  // large block width (meters)
+let x1 = 2.0, x2 = 5.0;  // positions of block CENTERS (meters from wall)
+let v1 = 0, v2 = -1.0;
+let hits = 0;
+let done = false;
+
+function step(dt) {
+  if (done) return;
+  x1 += v1 * dt;
+  x2 += v2 * dt;
+
+  // Safety: don't let blocks go through wall
+  if (x1 < 0) x1 = 0;
+
+  // Wall bounce: small block left edge hits wall at x=0
+  if (x1 - W1/2 <= 0 && v1 < 0) {
+    x1 = W1/2;
+    v1 = -v1;
+    hits++;
+    updateDisplay();
+  }
+
+  // Block-block collision: small right edge vs large left edge
+  const gap = (x2 - W2/2) - (x1 + W1/2);
+  if (gap < 0 && v1 > v2) {
+    const overlap = -gap;
+    x1 -= overlap/2;
+    x2 += overlap/2;
+    const v1n = ((m1-m2)*v1 + 2*m2*v2) / (m1+m2);
+    const v2n = (2*m1*v1 + (m2-m1)*v2) / (m1+m2);
+    v1 = v1n; v2 = v2n;
+    hits++;
+    updateDisplay();
+  }
+
+  // Termination: both moving right, small faster, no more contacts
+  if (v1 > 0 && v2 > 0 && v1 >= v2 && x1 < x2) {
+    done = true;
+  }
+}
+
+function updateDisplay() {
+  document.getElementById('count').textContent = hits;
+  const s = hits.toString();
+  document.getElementById('piDigits').textContent = '.' + s;
+  // Flash
+  canvas.style.opacity = '0.85';
+  setTimeout(() => canvas.style.opacity = '1', 60);
+}
+
+// ===== Render =====
+function render() {
+  ctx.fillStyle = '#0a0a12';
+  ctx.fillRect(0,0,W,H);
+
+  const ox = W * 0.12;
+  const pm = Math.min(W*0.7/12, H*0.5/8);
+
+  // Floor
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(ox-20, fy); ctx.lineTo(W-20, fy);
+  ctx.stroke();
+
+  // Wall
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.fillRect(ox-3, fy-350, 3, 350);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('WALL', ox-16, fy+20);
+
+  // Small block (1 kg) — size in meters * scale
+  const bw1 = W1 * pm;
+  const bh1 = W1 * pm;
+  const bx1 = ox + x1 * pm;
+  const by1 = fy;
+
+  ctx.shadowColor = 'rgba(100,180,255,0.35)';
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = '#64b4ff';
+  ctx.beginPath();
+  ctx.roundRect(bx1 - bw1/2, by1 - bh1, bw1, bh1, 3);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.font = `bold ${Math.max(11, bw1*0.4)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('1', bx1, by1 - bh1/2);
+
+  // Large block
+  const bw2 = W2 * pm;
+  const bh2 = W2 * pm;
+  const bx2 = ox + x2 * pm;
+
+  ctx.shadowColor = 'rgba(255,180,100,0.3)';
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = '#ffb464';
+  ctx.beginPath();
+  ctx.roundRect(bx2 - bw2/2, by1 - bh2, bw2, bh2, 4);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.font = `bold ${Math.max(10, bw2*0.25)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('100k', bx2, by1 - bh2/2);
+}
+
+// ===== Loop =====
+const DT = 0.0008;
+const SUB = 6;
+let elapsed = 0;
+
+function loop() {
+  for (let i = 0; i < SUB; i++) step(DT);
+  elapsed += DT * SUB;
+  render();
+  requestAnimationFrame(loop);
+}
+
+loop();
+
+// Click reset
+canvas.addEventListener('click', () => {
+  x1=3; x2=5; v1=0; v2=-0.8; hits=0; done=false; elapsed=0;
+  document.getElementById('count').textContent='0';
+  document.getElementById('piDigits').textContent='';
+});
+canvas.addEventListener('touchstart', e => { e.preventDefault(); canvas.click(); });
+</script>
+</body>
+</html>

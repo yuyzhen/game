@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>高尔顿板 · 钟形曲线</title>
+<style>
+*{margin:0;padding:0}
+body{background:#0a0a12;overflow:hidden;font-family:system-ui,-apple-system,sans-serif;height:100vh;display:flex;align-items:center;justify-content:center}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ===== Config =====
+const ROWS = 14;
+const PEG_R = 3;
+const BALL_R = 4;
+const GRAVITY = 0.25;
+const DAMPING = 0.55;
+const BIN_W = 28;
+const SPAWN_INTERVAL = 6;
+
+let pegs = [];
+let balls = [];
+let bins = [];
+let ballCount = 0;
+let frame = 0;
+
+// ===== Build Peg Grid (Rectangular, aligned) =====
+const COLS = 15;
+
+function buildBoard() {
+  pegs = [];
+  const cx = W / 2;
+  const topY = H * 0.08;
+  const sx = BIN_W;
+  const sy = sx * 0.87;
+  const totalW = (COLS - 1) * sx;
+  const x0 = cx - totalW / 2;
+
+  for (let r = 0; r < ROWS; r++) {
+    const y = topY + r * sy;
+    for (let c = 0; c < COLS; c++) {
+      pegs.push({ x: x0 + c * sx, y });
+    }
+  }
+}
+
+function buildBins() {
+  bins = [];
+  const n = COLS;
+  const totalW = (n - 1) * BIN_W;
+  const x0 = (W - totalW) / 2;
+  const by = H * 0.87;
+  for (let i = 0; i < n; i++) {
+    bins.push({ x: x0 + i * BIN_W, y: by, w: BIN_W - 2, count: 0, barH: 0 });
+  }
+}
+
+buildBoard();
+buildBins();
+
+// ===== Ball =====
+function spawnBall() {
+  balls.push({
+    x: W/2 + (Math.random() - 0.5) * 3,
+    y: H * 0.04,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: 0,
+    live: true,
+  });
+  ballCount++;
+}
+
+// ===== Physics =====
+function step() {
+  if (++frame % SPAWN_INTERVAL === 0 && balls.length < 600) spawnBall();
+
+  for (const b of balls) {
+    if (!b.live) continue;
+    b.vy += GRAVITY;
+    b.x += b.vx;
+    b.y += b.vy;
+    b.vx *= 0.99;
+
+    // Peg collisions
+    for (const p of pegs) {
+      const dx = b.x - p.x, dy = b.y - p.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const minD = PEG_R + BALL_R;
+      if (dist < minD && dist > 0.01) {
+        const overlap = minD - dist;
+        const nx = dx / dist, ny = dy / dist;
+        b.x += nx * overlap;
+        b.y += ny * overlap;
+        const dot = b.vx * nx + b.vy * ny;
+        if (dot < 0) {
+          b.vx -= 2 * dot * nx * DAMPING;
+          b.vy -= 2 * dot * ny * DAMPING;
+          b.vx += (Math.random() - 0.5) * 0.4;
+        }
+      }
+    }
+
+    // Ball-ball
+    for (const o of balls) {
+      if (o === b || !o.live) continue;
+      const dx = b.x - o.x, dy = b.y - o.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < BALL_R*2 && dist > 0.01) {
+        const overlap = BALL_R*2 - dist;
+        const nx = dx/dist, ny = dy/dist;
+        b.x += nx*overlap*0.5; b.y += ny*overlap*0.5;
+        o.x -= nx*overlap*0.5; o.y -= ny*overlap*0.5;
+        const dvx = b.vx - o.vx, dvy = b.vy - o.vy;
+        const dot = dvx*nx + dvy*ny;
+        if (dot < 0) {
+          b.vx -= dot*nx*0.5; b.vy -= dot*ny*0.5;
+          o.vx += dot*nx*0.5; o.vy += dot*ny*0.5;
+        }
+      }
+    }
+
+    // Settle in bin
+    if (b.y + BALL_R > bins[0].y) {
+      let settled = false;
+      for (const bin of bins) {
+        if (b.x > bin.x && b.x < bin.x + bin.w) {
+          bin.count++;
+          b.live = false;
+          settled = true;
+          break;
+        }
+      }
+      if (!settled) {
+        let best = bins[0], md = Infinity;
+        for (const bin of bins) {
+          const d = Math.abs(b.x - (bin.x + bin.w/2));
+          if (d < md) { md = d; best = bin; }
+        }
+        best.count++;
+        b.live = false;
+      }
+    }
+  }
+
+  // Cleanup
+  balls = balls.filter(b => b.live || balls.indexOf(b) < 200);
+}
+
+// ===== Render =====
+function render() {
+  ctx.fillStyle = '#0a0a12';
+  ctx.fillRect(0, 0, W, H);
+
+  // Pegs
+  ctx.fillStyle = 'rgba(255,255,255,0.12)';
+  for (const p of pegs) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, PEG_R, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Glowing pegs near falling balls
+  ctx.shadowColor = 'rgba(255,200,100,0.3)';
+  ctx.shadowBlur = 6;
+  for (const b of balls) {
+    if (!b.live) continue;
+    const grad = ctx.createRadialGradient(b.x-1, b.y-1, 0, b.x, b.y, BALL_R);
+    grad.addColorStop(0, '#fff8e8');
+    grad.addColorStop(0.4, '#ffb864');
+    grad.addColorStop(1, 'rgba(200,100,40,0.5)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, BALL_R, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+
+  // Bins — growing bars
+  const bot = H * 0.96;
+  const binTop = bins[0].y;
+  const barMaxH = bot - binTop - 10;
+  let maxC = 1;
+  for (const bin of bins) if (bin.count > maxC) maxC = bin.count;
+
+  for (const bin of bins) {
+    const targetH = bin.count > 0 ? (bin.count / maxC) * barMaxH : 0;
+    bin.barH = bin.barH || 0;
+    bin.barH += (targetH - bin.barH) * 0.25;
+    const drawH = Math.max(0, bin.barH);
+
+    if (drawH > 1) {
+      const ratio = drawH / barMaxH;
+      // Outer glow
+      ctx.shadowColor = `rgba(100, 200, 255, ${0.15 + ratio * 0.4})`;
+      ctx.shadowBlur = 12 + ratio * 10;
+      // Gradient: brighter at top, deeper at bottom
+      const grad = ctx.createLinearGradient(0, bot - drawH, 0, bot);
+      grad.addColorStop(0, `rgba(255, 255, 255, ${0.7 + ratio * 0.3})`);
+      grad.addColorStop(0.15, `rgba(160, 230, 255, ${0.6 + ratio * 0.4})`);
+      grad.addColorStop(0.5, `rgba(80, 180, 255, ${0.5 + ratio * 0.4})`);
+      grad.addColorStop(1, `rgba(30, 80, 180, ${0.4 + ratio * 0.4})`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(bin.x + 1, bot - 2 - drawH, bin.w - 2, drawH, [2, 2, 0, 0]);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Count label on bar
+      ctx.fillStyle = `rgba(255,255,255,${Math.min(0.7, 0.1 + ratio * 0.6)})`;
+      ctx.font = `bold ${9 + ratio * 4}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(bin.count, bin.x + bin.w / 2, bot - 2 - drawH - 4);
+    }
+  }
+
+  // Ideal normal distribution curve
+  const total = bins.reduce((s, b) => s + b.count, 0);
+  if (total > 5) {
+    const mid = (bins.length - 1) / 2;
+    const sigma = bins.length / 5;
+    ctx.strokeStyle = 'rgba(255,255,200,0.08)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 5]);
+    ctx.beginPath();
+    for (let i = 0; i < bins.length; i++) {
+      const x = bins[i].x + bins[i].w/2;
+      const z = (i - mid) / sigma;
+      const y = (bot - bins[0].y) * 0.5 * Math.exp(-0.5 * z * z);
+      if (i === 0) ctx.moveTo(x, bot - 4 - y);
+      else ctx.lineTo(x, bot - 4 - y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+// ===== Loop =====
+function loop() {
+  for (let i = 0; i < 3; i++) step();
+  render();
+  requestAnimationFrame(loop);
+}
+
+loop();
+
+canvas.addEventListener('click', () => {
+  balls = [];
+  bins.forEach(b => { b.count = 0; b.barH = 0; });
+  ballCount = 0; frame = 0;
+});
+canvas.addEventListener('touchstart', e => { e.preventDefault(); canvas.click(); });
+</script>
+</body>
+</html>
